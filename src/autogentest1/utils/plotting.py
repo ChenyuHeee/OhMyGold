@@ -17,7 +17,7 @@ def plot_price_history(history: pd.DataFrame, output_dir: Path, symbol: str) -> 
     """Render a simple closing price plot and save it to the outputs directory."""
 
     if history.empty:
-        logger.warning("No data available to plot for %s", symbol)
+        logger.warning("绘图数据为空：%s", symbol)
         return None
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -32,5 +32,5 @@ def plot_price_history(history: pd.DataFrame, output_dir: Path, symbol: str) -> 
     plt.tight_layout()
     plt.savefig(output_path)
     plt.close()
-    logger.info("Saved price history chart to %s", output_path)
+    logger.info("价格曲线已保存：%s", output_path)
     return output_path

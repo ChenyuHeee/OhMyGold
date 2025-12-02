@@ -22,7 +22,7 @@ def load_portfolio_state() -> Dict[str, Any]:
 
     path = _state_file_path()
     if not path.exists():
-        logger.info("State file not found at %s, using defaults", path)
+        logger.info("未找到状态文件：%s，使用默认参数", path)
         return {
             "positions": {
                 "symbol": "XAUUSD",
@@ -40,7 +40,7 @@ def load_portfolio_state() -> Dict[str, Any]:
         with path.open("r", encoding="utf-8") as handle:
             return json.load(handle)
     except json.JSONDecodeError as exc:
-        logger.error("Failed to parse state file %s: %s", path, exc)
+        logger.error("状态文件解析失败 %s：%s", path, exc)
         return {
             "positions": {
                 "symbol": "XAUUSD",
@@ -62,7 +62,7 @@ def save_portfolio_state(state: Dict[str, Any]) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
         json.dump(state, handle, indent=2)
-    logger.info("Saved portfolio state to %s", path)
+    logger.info("组合状态已保存：%s", path)
     return path
 
 

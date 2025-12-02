@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 def build_settlement_checklist(symbol: str) -> Dict[str, List[str]]:
     """Return end-of-day tasks for the settlement and logistics teams."""
 
-    logger.info("Preparing settlement checklist for %s", symbol)
+    logger.info("生成结算清单：%s", symbol)
     today = datetime.utcnow().strftime("%Y-%m-%d")
     return {
         "date": today,

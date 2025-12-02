@@ -7,7 +7,7 @@ import tempfile
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -23,7 +23,14 @@ except ImportError:  # pragma: no cover - dependency enforced via pyproject
 from ..config.settings import get_settings
 from ..utils.logging import get_logger
 from ..utils.serialization import df_to_records
-from .data_providers import IBKRAdapter, MarketDataAdapter, YahooFinanceAdapter
+from .data_providers import (
+    AlphaVantageFXAdapter,
+    IBKRAdapter,
+    MarketDataAdapter,
+    TanshuGoldAdapter,
+    TwelveDataAdapter,
+    YahooFinanceAdapter,
+)
 from .exceptions import DataProviderError, DataStalenessError
 from .indicators import compute_indicators
 
@@ -102,7 +109,7 @@ def _mock_price_history(symbol: str, days: int) -> pd.DataFrame:
         index=idx,
     )
     data.index.name = "Date"
-    logger.warning("Using mock market data for %s (%d days)", symbol, days)
+    logger.warning("使用模拟行情：%s（%d天）", symbol, days)
     return data.tail(days)
 
 
@@ -127,21 +134,16 @@ def _retry_fetch(
             last_error = exc
             wait_seconds = max(0.0, settings.market_data_retry_backoff) * math.pow(2, attempt - 1)
             logger.warning(
-                "Market data fetch attempt %d/%d failed for %s: %s", attempt, attempts, symbol, exc
+                "行情抓取失败（第%d/%d次，标的=%s）：%s",
+                attempt,
+                attempts,
+                symbol,
+                exc,
             )
             if attempt < attempts and wait_seconds:
                 time.sleep(min(wait_seconds, 30))
 
-    raise DataProviderError(f"Failed to fetch market data for {symbol}: {last_error}") from last_error
-
-
-def _select_adapter(provider_name: str) -> MarketDataAdapter:
-    provider = provider_name.lower().strip()
-    if provider in {"yfinance", "yahoo"}:
-        return YahooFinanceAdapter()
-    if provider in {"ibkr", "interactivebrokers"}:
-        return IBKRAdapter()
-    raise DataProviderError(f"Unsupported market data provider: {provider_name}")
+    raise DataProviderError(f"多次尝试后仍无法获取行情 {symbol}：{last_error}") from last_error
 
 
 def _ensure_freshness(history: pd.DataFrame, *, max_age_minutes: int) -> None:
@@ -157,8 +159,125 @@ def _ensure_freshness(history: pd.DataFrame, *, max_age_minutes: int) -> None:
     age = datetime.utcnow() - last_dt
     if age > timedelta(minutes=max_age_minutes):
         raise DataStalenessError(
-            f"Latest data point is {int(age.total_seconds() // 60)} minutes old (limit {max_age_minutes} min)."
+            f"最新行情已经超过{int(age.total_seconds() // 60)}分钟（上限{max_age_minutes}分钟）"
         )
+
+
+def _normalized_provider(value: Optional[str]) -> str:
+    return (value or "yfinance").lower().strip()
+
+
+def _instantiate_adapter(provider_key: str, settings) -> Optional[Tuple[MarketDataAdapter, str]]:
+    try:
+        if provider_key in {"yfinance", "yahoo"}:
+            return YahooFinanceAdapter(), "Yahoo Finance"
+        if provider_key in {"tanshu", "tanshuapi", "tanshu_gold", "tanshu-gold"}:
+            adapter = TanshuGoldAdapter(
+                settings.tanshu_api_key,
+                endpoint=settings.tanshu_endpoint,
+                symbol_map=settings.tanshu_symbol_map,
+                default_symbol_code=settings.tanshu_symbol_code,
+            )
+            return adapter, "探数黄金"
+        if provider_key in {"twelvedata", "twelve_data", "12data", "twelve"}:
+            adapter = TwelveDataAdapter(
+                settings.twelve_data_api_key,
+                base_url=settings.twelve_data_base_url,
+                symbol_map=settings.twelve_data_symbol_map,
+                default_symbol=settings.twelve_data_symbol,
+            )
+            return adapter, "Twelve Data"
+        if provider_key in {"alpha_vantage", "alphavantage", "alpha-vantage", "alpha"}:
+            adapter = AlphaVantageFXAdapter(settings.alpha_vantage_api_key)
+            return adapter, "Alpha Vantage"
+        if provider_key in {"ibkr", "interactivebrokers"}:
+            return IBKRAdapter(), "IBKR"
+    except DataProviderError as exc:
+        message = str(exc)
+        if "未配置" in message or "not configured" in message.lower():
+            logger.info("数据源初始化失败（%s）：%s", provider_key, message)
+        else:
+            logger.warning("数据源初始化失败（%s）：%s", provider_key, message)
+        return None
+    except Exception as exc:  # pragma: no cover - defensive guard
+        logger.warning("初始化行情适配器异常（%s）：%s", provider_key, exc)
+        return None
+    return None
+
+
+def _build_provider_chain(settings) -> List[Tuple[str, MarketDataAdapter, str]]:
+    primary = _normalized_provider(settings.data_provider)
+    chain: List[Tuple[str, MarketDataAdapter, str]] = []
+    seen: set[str] = set()
+
+    def add(provider: str) -> None:
+        key = _normalized_provider(provider)
+        if key in seen:
+            return
+        entry = _instantiate_adapter(key, settings)
+        if entry is None:
+            return
+        chain.append((key, entry[0], entry[1]))
+        seen.add(key)
+
+    add(primary)
+
+    fallback_matrix = {
+        "yfinance": ["twelvedata", "tanshu", "alpha_vantage"],
+        "yahoo": ["twelvedata", "tanshu", "alpha_vantage"],
+        "tanshu": ["twelvedata", "yfinance", "alpha_vantage"],
+        "tanshuapi": ["twelvedata", "yfinance", "alpha_vantage"],
+        "tanshu_gold": ["twelvedata", "yfinance", "alpha_vantage"],
+        "tanshu-gold": ["twelvedata", "yfinance", "alpha_vantage"],
+        "twelvedata": ["yfinance", "tanshu", "alpha_vantage"],
+        "twelve_data": ["yfinance", "tanshu", "alpha_vantage"],
+        "12data": ["yfinance", "tanshu", "alpha_vantage"],
+        "twelve": ["yfinance", "tanshu", "alpha_vantage"],
+        "alpha_vantage": ["twelvedata", "tanshu", "yfinance"],
+        "alphavantage": ["twelvedata", "tanshu", "yfinance"],
+        "alpha-vantage": ["twelvedata", "tanshu", "yfinance"],
+        "alpha": ["twelvedata", "tanshu", "yfinance"],
+        "ibkr": ["twelvedata", "tanshu", "yfinance", "alpha_vantage"],
+        "interactivebrokers": ["twelvedata", "tanshu", "yfinance", "alpha_vantage"],
+    }
+
+    fallback_candidates = fallback_matrix.get(primary, ["twelvedata", "tanshu", "alpha_vantage", "yfinance"])
+
+    # Ensure we consider common fallbacks even if not listed explicitly.
+    fallback_candidates = list(fallback_candidates) + ["twelvedata", "alpha_vantage", "tanshu", "yfinance"]
+
+    for candidate in fallback_candidates:
+        add(candidate)
+
+    if not chain:
+        raise DataProviderError(f"不支持的数据源：{settings.data_provider}")
+
+    return chain
+
+
+def _attempt_fetch_with_logging(
+    adapter: MarketDataAdapter,
+    symbol: str,
+    *,
+    start: datetime,
+    end: datetime,
+    session: Optional[Session],
+    settings,
+    provider_label: str,
+) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
+    label = provider_label or "未知来源"
+    logger.info("行情下载：%s（来源：%s）", symbol, label)
+    try:
+        data = _retry_fetch(adapter, symbol, start=start, end=end, session=session, settings=settings)
+    except DataProviderError as exc:
+        logger.warning("行情获取失败（%s）：%s", label, exc)
+        return None, str(exc)
+
+    if data.empty:
+        logger.warning("行情无有效数据（%s）", label)
+        return None, "无有效数据"
+
+    return data, None
 
 
 def fetch_price_history(symbol: str, days: int = 14) -> pd.DataFrame:
@@ -168,7 +287,7 @@ def fetch_price_history(symbol: str, days: int = 14) -> pd.DataFrame:
     mode = (settings.data_mode or "live").lower()
 
     if mode not in {"live", "hybrid", "mock"}:
-        logger.warning("Unknown data_mode '%s', defaulting to 'live'", mode)
+        logger.warning("未识别的数据模式 '%s'，已改用 live", mode)
         mode = "live"
 
     if mode == "mock":
@@ -176,24 +295,36 @@ def fetch_price_history(symbol: str, days: int = 14) -> pd.DataFrame:
 
     end = datetime.utcnow()
     start = end - timedelta(days=days * 2)
-    adapter = _select_adapter(settings.data_provider)
     session = _cached_session(settings)
 
-    logger.info("Downloading price history for %s via %s", symbol, settings.data_provider)
+    provider_chain = _build_provider_chain(settings)
 
-    try:
-        data = _retry_fetch(adapter, symbol, start=start, end=end, session=session, settings=settings)
-    except DataProviderError as exc:
-        if mode == "hybrid":
-            logger.error("Market data provider failed, falling back to mock data: %s", exc)
-            return _mock_price_history(symbol, days)
-        raise
+    data: Optional[pd.DataFrame] = None
+    error: Optional[str] = None
 
-    if data.empty:
-        logger.warning("No price data retrieved for %s", symbol)
+    for index, (_, adapter, label) in enumerate(provider_chain):
+        data, error = _attempt_fetch_with_logging(
+            adapter,
+            symbol,
+            start=start,
+            end=end,
+            session=session,
+            settings=settings,
+            provider_label=label,
+        )
+        if data is not None:
+            break
+        if index < len(provider_chain) - 1:
+            next_label = provider_chain[index + 1][2]
+            logger.info("切换备用行情源：%s", next_label)
+
+    if data is None:
         if mode == "hybrid":
+            logger.warning("所有行情源不可用，启用模拟数据：%s", symbol)
             return _mock_price_history(symbol, days)
-        return data
+        if error:
+            logger.error("行情抓取失败：%s", error)
+        return pd.DataFrame(columns=["Open", "High", "Low", "Close", "Adj Close", "Volume"])
 
     data = data.tail(days)
     data.index = pd.to_datetime(data.index)

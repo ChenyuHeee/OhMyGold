@@ -12,7 +12,7 @@ logger = get_logger(__name__)
 def collect_fundamental_snapshot(symbol: str) -> Dict[str, Any]:
     """Return a structured snapshot of core fundamental drivers."""
 
-    logger.info("Collecting fundamental snapshot for %s", symbol)
+    logger.info("整理基础面数据：%s", symbol)
     # Placeholder data; integrate real data providers such as World Gold Council in production.
     return {
         "central_bank_activity": {

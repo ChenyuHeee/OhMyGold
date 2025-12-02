@@ -42,7 +42,7 @@ def build_risk_snapshot(
 
     drawdown_threshold: Optional[float] = None
     if history.empty:
-        logger.warning("Cannot compute risk snapshot without price history for %s", symbol)
+        logger.warning("缺少行情数据，无法计算风险快照：%s", symbol)
         vol_annualized: Optional[float] = None
         drawdown_flag = False
     else:

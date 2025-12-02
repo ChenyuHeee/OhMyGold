@@ -231,7 +231,7 @@ def _solicit_human_override(reason: str, settings: Settings) -> Dict[str, Any]:
         if isinstance(decision, dict):
             return decision
     except json.JSONDecodeError:
-        logger.warning("Admin override response was not valid JSON; treating as CUSTOM note")
+        logger.warning("管理员覆盖输入不是合法JSON，已按备注处理")
     return {"decision": "CUSTOM", "notes": raw}
 
 
@@ -240,12 +240,12 @@ def run_gold_outlook(symbol: str, days: int, *, settings: Settings | None = None
 
     settings = settings or get_settings()
     configure_logging(settings.log_level)
-    logger.info("Starting gold outlook workflow for %s (%d days)", symbol, days)
+    logger.info("启动黄金晨会多代理流程：%s（%d天）", symbol, days)
 
     try:
         context_payload, history = build_conversation_context(symbol, days, settings)
     except (DataStalenessError, DataProviderError) as exc:
-        logger.error("Aborting workflow due to data quality issue: %s", exc)
+        logger.error("数据质量异常，流程终止：%s", exc)
         raise
 
     outputs_dir = Path(__file__).resolve().parent.parent / "outputs"
@@ -302,7 +302,7 @@ def run_gold_outlook(symbol: str, days: int, *, settings: Settings | None = None
     rejection_count = _count_rejections(last_groupchat.messages if last_groupchat else [])
     override_decision: Dict[str, Any] | None = None
     if rejection_count >= settings.workflow_max_plan_retries:
-        logger.warning("Max plan retries reached (%d); requesting human override", rejection_count)
+        logger.warning("达到最大方案重试次数(%d)，请求人工干预", rejection_count)
         override_decision = _solicit_human_override(
             reason=f"Received {rejection_count} blocked/rejected responses",
             settings=settings,
@@ -316,5 +316,5 @@ def run_gold_outlook(symbol: str, days: int, *, settings: Settings | None = None
         "rejection_count": rejection_count,
         "override_decision": override_decision,
     }
-    logger.info("Workflow completed")
+    logger.info("流程执行完毕")
     return result

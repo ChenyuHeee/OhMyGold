@@ -24,14 +24,15 @@ def compute_indicators(history: pd.DataFrame) -> Dict[str, pd.Series]:
         "rsi_14": RSIIndicator(close, window=14, fillna=True).rsi(),
     }
 
-    atr = AverageTrueRange(
-        high=history["High"].astype(float),
-        low=history["Low"].astype(float),
-        close=close,
-        window=14,
-        fillna=True,
-    )
-    indicators["atr_14"] = atr.average_true_range()
+    if len(history) >= 14:
+        atr = AverageTrueRange(
+            high=history["High"].astype(float),
+            low=history["Low"].astype(float),
+            close=close,
+            window=14,
+            fillna=True,
+        )
+        indicators["atr_14"] = atr.average_true_range()
 
     macd = MACD(close, window_slow=26, window_fast=12, window_sign=9, fillna=True)
     indicators.update(

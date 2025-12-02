@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from functools import lru_cache
-from typing import Any, List
+from typing import Any, Dict, List
 
 from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
@@ -63,6 +63,14 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("alpha_vantage_api_key", "alphavantage_api_key", "ALPHAVANTAGE_API_KEY"),
     )
     news_api_key: str | None = Field(None)
+    tanshu_api_key: str | None = Field(None)
+    tanshu_endpoint: str = Field("gjgold2")
+    tanshu_symbol_code: str | None = Field(None)
+    tanshu_symbol_map: Dict[str, str] = Field(default_factory=dict)
+    twelve_data_api_key: str | None = Field(None)
+    twelve_data_base_url: str = Field("https://api.twelvedata.com")
+    twelve_data_symbol: str | None = Field(None)
+    twelve_data_symbol_map: Dict[str, str] = Field(default_factory=dict)
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -107,6 +115,43 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return []
+
+    @field_validator("tanshu_symbol_map", "twelve_data_symbol_map", mode="before")
+    @classmethod
+    def _parse_symbol_map(cls, value: object) -> Dict[str, str]:
+        if value is None:
+            return {}
+        if isinstance(value, dict):
+            return {
+                str(key).upper(): str(val)
+                for key, val in value.items()
+                if val is not None
+            }
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if not cleaned:
+                return {}
+            try:
+                parsed = json.loads(cleaned)
+                if isinstance(parsed, dict):
+                    return {
+                        str(key).upper(): str(val)
+                        for key, val in parsed.items()
+                        if val is not None
+                    }
+            except json.JSONDecodeError:
+                mapping: Dict[str, str] = {}
+                parts = [segment for segment in cleaned.split(",") if segment.strip()]
+                for part in parts:
+                    if ":" not in part:
+                        continue
+                    key, val = part.split(":", 1)
+                    key = key.strip()
+                    val = val.strip()
+                    if key and val:
+                        mapping[key.upper()] = val
+                return mapping
+        return {}
 
     @model_validator(mode="before")
     @classmethod

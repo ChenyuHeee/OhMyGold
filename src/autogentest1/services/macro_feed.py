@@ -13,7 +13,7 @@ def collect_macro_highlights() -> List[Dict[str, str]]:
     """Fetch or compose macroeconomic highlights relevant to gold."""
 
     # Placeholder implementation. Replace with calls to macro data providers.
-    logger.info("Collecting macro highlights")
+    logger.info("获取宏观摘要")
     return [
         {
             "headline": "Real yields stay elevated",
