@@ -1,0 +1,113 @@
+Metadata-Version: 2.4
+Name: autogentest1
+Version: 0.1.0
+Summary: Multi-agent AutoGen workflow for gold trading analytics powered by DeepSeek.
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: pyautogen>=0.2.1
+Requires-Dist: pandas>=2.0
+Requires-Dist: numpy>=1.26
+Requires-Dist: yfinance>=0.2
+Requires-Dist: ta>=0.11
+Requires-Dist: pydantic>=2.5
+Requires-Dist: python-dotenv>=1.0
+Requires-Dist: matplotlib>=3.8
+Requires-Dist: plotly>=5.18
+Requires-Dist: json-repair>=0.2
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.21; extra == "dev"
+
+# AutoGen DeepSeek 黄金分析
+
+该项目搭建了一个以黄金交易分析为核心的多智能体 AutoGen 应用。智能体编制参考专业交易团队，覆盖研究、交易、风控与结算等环节，并统一由 DeepSeek 大语言模型驱动。
+
+## 功能特性
+- 采用 AutoGen Assistant 与 UserProxy 角色的智能体架构。
+- 代理角色对标真实交易台，涵盖宏观、基本面、量化、交易、风控、合规与运营职能。
+- 模块化服务层支持行情获取、技术指标、供需洞察与风险快照。
+- 基于 Pydantic 的配置管理，支持 `.env` 环境变量。
+- 提供 CLI 入口以编排黄金展望工作流。
+- 预置测试骨架，便于扩展关键数据处理逻辑。
+- 所有上下文数据与代理回复均约定为 JSON 结构，便于解析与留痕。
+- Risk/Compliance 设有回退闭环，可否决并强制 HeadTrader 与 PaperTrader 重新规划。
+- SettlementAgent 会调用工具更新本地 `portfolio_state`，形成日度记忆。
+
+## 日常沟通节奏
+工作流遵循真实交易台的晨会流程，确保信息逐级传递与责任明确：
+1. **Phase 1 研究简报**：Data/Macro/Fundamental/Quant 依次输出市场要点并标记完成；
+2. **Phase 2 交易总监定调**：HeadTrader 整合观点，制定基准与备选方案；
+3. **Phase 3 执行方案**：PaperTrader 将策略落地为订单、对冲与监控指令；
+4. **Phase 4 风控合规**：RiskManager 校验风险敞口，Compliance 确认监管与流程；
+5. **Phase 5 运营交接**：Settlement 汇总资金、保证金、物流与未决事项。
+每个阶段收尾需明确标记 `COMPLETE`，以便下一角色接续，最终生成可执行的交易与运营包。
+同时，所有代理的回复需遵循上下文中的 JSON schema（字段包含 phase/status/summary/details），确保易于解析与留痕。
+
+## 数据工具
+- `autogentest1.tools.data_tools`：
+   - `get_gold_market_snapshot`：行情、指标与波动率快照。
+   - `get_macro_snapshot`：DXY、TIPS 等宏观代理数据。
+   - `get_gold_silver_ratio`：计算金银比序列。
+   - `get_event_calendar`：占位财经日历，可替换为真实服务。
+- `autogentest1.tools.portfolio`：
+   - `get_portfolio_state` / `update_portfolio_state`：读取与写回持仓，SettlementAgent 通过 ToolsProxy 调用。
+请在工具调用时返回的 JSON 中记录来源，方便其他角色复核。
+
+## 人设与闭环
+每个 Agent 在 `system_prompt` 中均埋入鲜明的角色定位：
+- 宏观：学院派，重视美元与实际利率。
+- 技术：价格行动猎手，强调点位。
+- 基本面：供需侦探，关注央行、ETF、金银比。
+- 量化：概率与模型首位。
+- 风控：悲观守门员，可直接拒绝计划。
+- 合规：流程铁律，缺一不可。
+- HeadTrader/PaperTrader/Settlement：负责折中、执行与落地。
+当 RiskManager 或 Compliance 设定 `status='REJECTED'/'BLOCKED'` 时，HeadTrader 会按 `feedback_rules` 重开 Phase 2，直到通过。
+
+## 本地模型集成
+- 适配示例：MacBook M4 24G 可运行 Qwen2.5-14B-Instruct（量化后约 9–10GB）。
+- 启动步骤：安装 `ollama` 或 `llama.cpp` 推理服务 → 拉取模型 → 启动本地 HTTP 接口（默认 `http://127.0.0.1:11434/v1`）。
+- 配置方式：在 `.env` 中设置 `LOCAL_MODEL_ENABLED=true`，填写 `LOCAL_MODEL_NAME`、`LOCAL_MODEL_BASE_URL`、`LOCAL_MODEL_AGENTS`（如 `DataAgent,MacroAnalystAgent,QuantResearchAgent`）。
+- 运行逻辑：被列入 `LOCAL_MODEL_AGENTS` 的角色优先调用本地模型，失败时自动回退至 DeepSeek；其余角色仍直接使用 DeepSeek。
+- 建议分工：让 Phase 1 的研究角色、Phase 4 风控初审等高频任务落在本地模型，关键决策仍交由云端模型兜底。*** End Patch
+
+## 智能体编制
+- **HeadTraderAgent**：整合所有研究观点并定稿交易计划。
+- **DataAgent**：获取市场行情、成交量与波动率上下文。
+- **TechAnalystAgent**：解析技术指标与价格结构。
+- **MacroAnalystAgent**：评估宏观政策、美元流动性与地缘政治因素。
+- **FundamentalAnalystAgent**：跟踪央行购金、ETF 流、实物溢价与季节性需求。
+- **QuantResearchAgent**：基于历史数据和量化模型评估信号强度与场景。
+- **PaperTraderAgent**：将观点落实为可执行的期货/OTC 策略。
+- **RiskManagerAgent**：校验仓位与 PnL 是否符合风控阈值并提出对冲方案。
+- **ComplianceAgent**：确认合规、审批与留痕要求。
+- **SettlementAgent**：输出资金、保证金、交割与物流的清单。
+- **ToolsProxy**：在需要时调用 Python 工具函数以支撑数据请求。
+
+## 快速开始
+1. 创建并激活 Python 3.10 及以上版本的环境。
+2. 安装依赖：
+   ```bash
+   pip install .
+   ```
+3. 复制 `.env.example` 为 `.env`，并填写 DeepSeek API Key、数据源等凭证。
+4. 运行主工作流：
+   ```bash
+   python -m autogentest1.main --days 14 --symbol XAUUSD
+   ```
+
+关键环境变量（`.env`）：
+
+```
+DEEPSEEK_API_KEY=...
+DEEPSEEK_MODEL=deepseek-chat
+MAX_POSITION_OZ=5000
+STRESS_VAR_MILLIONS=3.0
+DAILY_DRAWDOWN_PCT=3.0
+DEFAULT_POSITION_OZ=1200
+PNL_TODAY_MILLIONS=0.4
+```
+
+## 开发说明
+- 使用 `pytest` 运行 `tests/` 目录下的测试。
+- 根据自身投资假设或专有数据源扩展智能体提示词与服务模块。
