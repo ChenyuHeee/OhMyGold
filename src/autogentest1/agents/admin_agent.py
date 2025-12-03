@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from autogen import UserProxyAgent
+from ..compat import UserProxyAgent
 
 
 def create_admin_proxy() -> UserProxyAgent:

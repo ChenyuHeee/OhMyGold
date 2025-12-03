@@ -6,9 +6,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List
 
-from autogen import AssistantAgent, UserProxyAgent
-from autogen.coding import LocalCommandLineCodeExecutor
-
+from ..compat import AssistantAgent, LocalCommandLineCodeExecutor, UserProxyAgent
 from ..config.settings import Settings, get_settings
 
 _GLOBAL_JSON_CONTRACT = (
@@ -28,8 +26,12 @@ def _build_code_execution_config(settings: Settings, agent_name: str) -> Dict[st
     if not _should_enable_code_execution(settings, agent_name):
         return None
 
-    work_dir = settings.code_execution_workdir or str(Path.cwd())
-    executor = LocalCommandLineCodeExecutor(work_dir=work_dir)
+    base_dir = Path(settings.code_execution_workdir or Path.cwd() / "outputs" / "code_sandbox")
+    base_dir.mkdir(parents=True, exist_ok=True)
+    executor = LocalCommandLineCodeExecutor(
+        timeout=int(settings.code_execution_timeout),
+        work_dir=base_dir,
+    )
     return {"executor": executor}
 
 

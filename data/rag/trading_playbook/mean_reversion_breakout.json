@@ -1,0 +1,9 @@
+{
+  "strategy": "Mean Reversion Channel Fade",
+  "market_regime": "Range-bound",
+  "lookback_days": 60,
+  "confidence_signal": "Gold closes more than 1.5 standard deviations above 20-day moving average while RSI(14) > 72",
+  "execution_hint": "Scale into short futures over two tranches with stop above 2.2 standard deviations and target at 20-day mean",
+  "risk_note": "Tighten stops ahead of macro catalysts such as FOMC; add call spreads as tail-risk hedge if VIX < 15",
+  "body": "Mean reversion setups excel when gold trades in a well-defined channel and realized volatility is contained. Confirm the regime with falling ATR(14) and a neutral macro backdrop (flat real yields). Entries trigger when price stretches beyond 1.5 standard deviations above the 20-day moving average while RSI(14) exceeds 72. Execution favours scaling into 50% risk at the signal close and the balance on a failed follow-through during Asia hours. Stops sit 2.2 standard deviations above the mean to avoid noise. First profit target reverts to the 20-day moving average; secondary target trails VWAP if momentum collapses. Risk desk insists on capping aggregate short gamma by pairing with call spreads whenever cross-asset volatility signals complacency."
+}

@@ -17,6 +17,7 @@ dependencies = [
     "plotly>=5.18",
     "json-repair>=0.2",
     "requests-cache>=1.2",
+    "chromadb>=0.5",
 ]
 
 [project.optional-dependencies]

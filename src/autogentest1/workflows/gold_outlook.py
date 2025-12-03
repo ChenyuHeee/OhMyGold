@@ -51,9 +51,19 @@ def _clean_numeric(value: Any) -> Any:
 def _attempt_parse_json(payload: Any) -> Any:
     """Best-effort JSON parsing with optional repair."""
 
-    if isinstance(payload, (dict, list)):
+    if isinstance(payload, dict):
         return payload
-    if not isinstance(payload, str):
+    if isinstance(payload, list):
+        text_parts: list[str] = []
+        for item in payload:
+            if isinstance(item, str):
+                text_parts.append(item)
+            elif isinstance(item, dict):
+                text_value = item.get("text") or item.get("content") or item.get("value")
+                if isinstance(text_value, str):
+                    text_parts.append(text_value)
+        payload = "\n".join(text_parts).strip()
+    if not isinstance(payload, str) or not payload.strip():
         return None
     try:
         return json.loads(payload)

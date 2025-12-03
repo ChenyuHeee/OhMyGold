@@ -35,8 +35,14 @@
    - `get_macro_snapshot`：DXY、TIPS 等宏观代理数据。
    - `get_gold_silver_ratio`：计算金银比序列。
    - `get_event_calendar`：占位财经日历，可替换为真实服务。
+- `autogentest1.tools.rag`：
+   - `RagService` 基于 Chroma 的持久向量库，默认索引 `data/rag/macro_history` 与 `data/rag/trading_playbook`。
+   - `scripts/ingest_macro_history.py` 可一次性加载宏观案例与交易剧本，生成本地 `data/rag-index` 索引以供代理检索。
 - `autogentest1.tools.portfolio`：
    - `get_portfolio_state` / `update_portfolio_state`：读取与写回持仓，SettlementAgent 通过 ToolsProxy 调用。
+- `autogentest1.tools.quant_helpers`：
+   - `prepare_quant_dataset`：一次性输出收盘价、收益、波动率、均线、RSI/ATR 等指标，便于 Quant/Tech 直接引用。
+   - `compute_factor_exposures`：对常见宏观因子（美元、股指、长债）估算相关系数与贝塔，快速识别组合敏感度。
 请在工具调用时返回的 JSON 中记录来源，方便其他角色复核。
 
 ## 人设与闭环
@@ -65,7 +71,7 @@
 - **FundamentalAnalystAgent**：跟踪央行购金、ETF 流、实物溢价与季节性需求。
 - **QuantResearchAgent**：基于历史数据和量化模型评估信号强度与场景。
 - **PaperTraderAgent**：将观点落实为可执行的期货/OTC 策略。
-- **RiskManagerAgent**：校验仓位与 PnL 是否符合风控阈值并提出对冲方案。
+- **RiskManagerAgent**：校验仓位与 PnL 是否符合风控阈值并提出对冲方案；风控工具现已输出组合 VaR（百万美元）、跨资产滚动相关系数以及情景压力测试 PnL，便于快速识别限额占用与极端亏损风险。
 - **ComplianceAgent**：确认合规、审批与留痕要求。
 - **SettlementAgent**：输出资金、保证金、交割与物流的清单。
 - **ToolsProxy**：在需要时调用 Python 工具函数以支撑数据请求。

@@ -27,6 +27,7 @@ from .data_providers import (
     AlphaVantageFXAdapter,
     IBKRAdapter,
     MarketDataAdapter,
+    PolygonAdapter,
     TanshuGoldAdapter,
     TwelveDataAdapter,
     YahooFinanceAdapter,
@@ -192,6 +193,13 @@ def _instantiate_adapter(provider_key: str, settings) -> Optional[Tuple[MarketDa
             return adapter, "Alpha Vantage"
         if provider_key in {"ibkr", "interactivebrokers"}:
             return IBKRAdapter(), "IBKR"
+        if provider_key in {"polygon", "polygon.io"}:
+            adapter = PolygonAdapter(
+                settings.polygon_api_key,
+                base_url=settings.polygon_base_url,
+                symbol_map=settings.polygon_symbol_map,
+            )
+            return adapter, "Polygon.io"
     except DataProviderError as exc:
         message = str(exc)
         if "未配置" in message or "not configured" in message.lower():
@@ -223,28 +231,30 @@ def _build_provider_chain(settings) -> List[Tuple[str, MarketDataAdapter, str]]:
     add(primary)
 
     fallback_matrix = {
-        "yfinance": ["twelvedata", "tanshu", "alpha_vantage"],
-        "yahoo": ["twelvedata", "tanshu", "alpha_vantage"],
-        "tanshu": ["twelvedata", "yfinance", "alpha_vantage"],
-        "tanshuapi": ["twelvedata", "yfinance", "alpha_vantage"],
-        "tanshu_gold": ["twelvedata", "yfinance", "alpha_vantage"],
-        "tanshu-gold": ["twelvedata", "yfinance", "alpha_vantage"],
-        "twelvedata": ["yfinance", "tanshu", "alpha_vantage"],
-        "twelve_data": ["yfinance", "tanshu", "alpha_vantage"],
-        "12data": ["yfinance", "tanshu", "alpha_vantage"],
-        "twelve": ["yfinance", "tanshu", "alpha_vantage"],
-        "alpha_vantage": ["twelvedata", "tanshu", "yfinance"],
-        "alphavantage": ["twelvedata", "tanshu", "yfinance"],
-        "alpha-vantage": ["twelvedata", "tanshu", "yfinance"],
-        "alpha": ["twelvedata", "tanshu", "yfinance"],
-        "ibkr": ["twelvedata", "tanshu", "yfinance", "alpha_vantage"],
-        "interactivebrokers": ["twelvedata", "tanshu", "yfinance", "alpha_vantage"],
+        "yfinance": ["polygon", "twelvedata", "tanshu", "alpha_vantage"],
+        "yahoo": ["polygon", "twelvedata", "tanshu", "alpha_vantage"],
+        "tanshu": ["polygon", "twelvedata", "yfinance", "alpha_vantage"],
+        "tanshuapi": ["polygon", "twelvedata", "yfinance", "alpha_vantage"],
+        "tanshu_gold": ["polygon", "twelvedata", "yfinance", "alpha_vantage"],
+        "tanshu-gold": ["polygon", "twelvedata", "yfinance", "alpha_vantage"],
+        "twelvedata": ["polygon", "yfinance", "tanshu", "alpha_vantage"],
+        "twelve_data": ["polygon", "yfinance", "tanshu", "alpha_vantage"],
+        "12data": ["polygon", "yfinance", "tanshu", "alpha_vantage"],
+        "twelve": ["polygon", "yfinance", "tanshu", "alpha_vantage"],
+        "alpha_vantage": ["polygon", "twelvedata", "tanshu", "yfinance"],
+        "alphavantage": ["polygon", "twelvedata", "tanshu", "yfinance"],
+        "alpha-vantage": ["polygon", "twelvedata", "tanshu", "yfinance"],
+        "alpha": ["polygon", "twelvedata", "tanshu", "yfinance"],
+        "ibkr": ["polygon", "twelvedata", "tanshu", "yfinance", "alpha_vantage"],
+        "interactivebrokers": ["polygon", "twelvedata", "tanshu", "yfinance", "alpha_vantage"],
+        "polygon": ["twelvedata", "yfinance", "alpha_vantage", "tanshu"],
+        "polygon.io": ["twelvedata", "yfinance", "alpha_vantage", "tanshu"],
     }
 
-    fallback_candidates = fallback_matrix.get(primary, ["twelvedata", "tanshu", "alpha_vantage", "yfinance"])
+    fallback_candidates = fallback_matrix.get(primary, ["polygon", "twelvedata", "tanshu", "alpha_vantage", "yfinance"])
 
     # Ensure we consider common fallbacks even if not listed explicitly.
-    fallback_candidates = list(fallback_candidates) + ["twelvedata", "alpha_vantage", "tanshu", "yfinance"]
+    fallback_candidates = list(fallback_candidates) + ["polygon", "twelvedata", "alpha_vantage", "tanshu", "yfinance"]
 
     for candidate in fallback_candidates:
         add(candidate)

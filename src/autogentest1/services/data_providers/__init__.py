@@ -9,6 +9,7 @@ from .alpha_vantage_fx_adapter import AlphaVantageFXAdapter
 from .ibkr_adapter import IBKRAdapter
 from .tanshu_gold_adapter import TanshuGoldAdapter
 from .twelvedata_adapter import TwelveDataAdapter
+from .polygon_adapter import PolygonAdapter
 
 __all__ = [
     "MarketDataAdapter",
@@ -19,4 +20,5 @@ __all__ = [
     "IBKRAdapter",
     "TanshuGoldAdapter",
     "TwelveDataAdapter",
+    "PolygonAdapter",
 ]

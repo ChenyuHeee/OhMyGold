@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from autogen import AssistantAgent
-
+from ..compat import AssistantAgent
 from .base import create_llm_agent
 from ..config.settings import Settings
 
