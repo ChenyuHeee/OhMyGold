@@ -71,6 +71,9 @@ class TanshuGoldAdapter(DataSourceAdapter):
         end: datetime,
         session: Optional[Session] = None,
     ) -> pd.DataFrame:
+        start_utc = start.astimezone(timezone.utc).replace(tzinfo=None) if start.tzinfo else start
+        end_utc = end.astimezone(timezone.utc).replace(tzinfo=None) if end.tzinfo else end
+
         requester = session.get if session else requests.get
         url = f"{self._BASE_URL}/{self._endpoint}"
         try:
@@ -130,7 +133,7 @@ class TanshuGoldAdapter(DataSourceAdapter):
         df = pd.DataFrame([record])
         df.index = pd.to_datetime([timestamp])
         df.index.name = "Date"
-        return df.loc[(df.index >= start) & (df.index <= end)]
+        return df.loc[(df.index >= start_utc) & (df.index <= end_utc)]
 
     def _find_entry(self, listing: object, symbol: str) -> Optional[Dict[str, object]]:
         """Locate the entry matching the requested symbol."""

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
 import pandas as pd
@@ -64,17 +64,25 @@ class TwelveDataAdapter(DataSourceAdapter):
         end: datetime,
         session: Optional[Session] = None,
     ) -> pd.DataFrame:
+        def _utc_naive(moment: datetime) -> datetime:
+            if moment.tzinfo is None:
+                return moment
+            return moment.astimezone(timezone.utc).replace(tzinfo=None)
+
+        start_utc = _utc_naive(start)
+        end_utc = _utc_naive(end)
+
         resolved_symbol = self._resolve_symbol(symbol)
         if not resolved_symbol:
             raise DataProviderError(f"Twelve Data 未找到 {symbol} 对应的交易代码")
 
         url = f"{self._base_url}/time_series"
-        output_size = max(100, min(5000, (end - start).days + 50))
+        output_size = max(100, min(5000, (end_utc - start_utc).days + 50))
         params = {
             "symbol": resolved_symbol,
             "interval": "1day",
-            "start_date": start.strftime("%Y-%m-%d"),
-            "end_date": end.strftime("%Y-%m-%d"),
+            "start_date": start_utc.strftime("%Y-%m-%d"),
+            "end_date": end_utc.strftime("%Y-%m-%d"),
             "outputsize": output_size,
             "order": "ASC",
             "timezone": "UTC",
@@ -140,7 +148,7 @@ class TwelveDataAdapter(DataSourceAdapter):
         df.sort_values("Date", inplace=True)
         df.set_index("Date", inplace=True)
         df.index.name = "Date"
-        return df.loc[(df.index >= start) & (df.index <= end)]
+        return df.loc[(df.index >= start_utc) & (df.index <= end_utc)]
 
     def _resolve_symbol(self, symbol: str) -> str:
         symbol_norm = (symbol or "").upper()
