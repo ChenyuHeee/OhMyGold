@@ -8,10 +8,10 @@ from typing import Optional
 import pandas as pd
 from requests import Session
 
-from .base import MarketDataAdapter
+from .base import DataSourceAdapter
 
 
-class IBKRAdapter(MarketDataAdapter):
+class IBKRAdapter(DataSourceAdapter):
     """Stub adapter raising NotImplementedError until IBKR integration is configured."""
 
     def fetch_price_history(

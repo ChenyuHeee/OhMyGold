@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Iterable, Optional
 
 import pandas as pd
@@ -13,7 +13,7 @@ try:
 except ImportError:  # pragma: no cover - Python < 3.9 fallback
     ZoneInfo = None  # type: ignore[assignment]
 
-from .base import MarketDataAdapter
+from .base import DataSourceAdapter
 from ..exceptions import DataProviderError
 
 
@@ -38,7 +38,7 @@ def _to_float(value: object) -> Optional[float]:
     return None
 
 
-class TanshuGoldAdapter(MarketDataAdapter):
+class TanshuGoldAdapter(DataSourceAdapter):
     """Fetch spot or exchange gold quotes from Tanshu's gold endpoints."""
 
     _BASE_URL = "https://api.tanshuapi.com/api/gold/v1"
@@ -201,4 +201,5 @@ class TanshuGoldAdapter(MarketDataAdapter):
                 except ValueError:
                     continue
         # Fallback to current time so downstream freshness checks still work briefly.
-        return datetime.utcnow().replace(microsecond=0)
+        now_utc = datetime.now(timezone.utc).replace(microsecond=0)
+        return now_utc.replace(tzinfo=None)

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Iterable, List
 
@@ -69,6 +70,24 @@ def main() -> None:
         default=Path("data/rag-index"),
         help="Directory for persisted vector index",
     )
+    parser.add_argument(
+        "--namespace",
+        type=str,
+        default="gold-playbooks",
+        help="Namespace (collection name) to ingest into",
+    )
+    parser.add_argument(
+        "--tag",
+        action="append",
+        default=None,
+        help="Optional tag to attach to document metadata (can be repeated)",
+    )
+    parser.add_argument(
+        "--log-dir",
+        type=Path,
+        default=Path("outputs/ingest_logs"),
+        help="Directory for ingestion summary logs",
+    )
     args = parser.parse_args()
 
     provided_sources = list(args.sources)
@@ -83,12 +102,44 @@ def main() -> None:
     if not source_paths:
         raise SystemExit("No source documents found. Provide --sources or place files under data/rag/macro_history.")
 
-    config = RagConfig(index_root=args.index_root)
+    config = RagConfig(
+        index_root=args.index_root,
+        namespace=args.namespace,
+    )
     service = RagService(config)
 
-    doc_iterable = _iter_documents(source_paths)
+    tags = [tag.strip() for tag in (args.tag or []) if tag and tag.strip()]
+
+    def _tagged_documents() -> Iterable[RagDocument]:
+        for document in _iter_documents(source_paths):
+            if tags:
+                metadata = dict(document.metadata)
+                metadata.setdefault("tags", [])
+                if isinstance(metadata["tags"], list):
+                    metadata["tags"].extend(tags)
+                else:
+                    metadata["tags"] = tags
+                yield RagDocument(body=document.body, metadata=metadata)
+            else:
+                yield document
+
+    doc_iterable = _tagged_documents()
     count = service.ingest_documents(doc_iterable)
     print(f"Ingested {count} document(s) into namespace '{config.namespace}' at {config.index_root}")
+
+    args.log_dir.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(UTC)
+    summary = {
+        "timestamp": now.isoformat().replace("+00:00", "Z"),
+        "namespace": config.namespace,
+        "index_root": str(config.index_root),
+        "documents": count,
+        "sources": [str(path) for path in source_paths],
+        "tags": tags,
+    }
+    log_path = args.log_dir / f"ingest_{now.strftime('%Y%m%dT%H%M%SZ')}.json"
+    log_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    print(f"Wrote ingest summary to {log_path}")
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -10,7 +10,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 from ..config.settings import Settings, get_settings
 from .rag.client import RagConfig, RagDocument, RagQueryResult, RagService
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _SUPPORTED_SUFFIXES = {".json", ".md", ".txt"}
 
 
@@ -127,6 +127,10 @@ def ensure_default_corpus_loaded(
     service = _get_service(loaded_settings, namespace)
     corpus_paths = loaded_settings.rag_corpus_paths or []
     documents = _iter_corpus_documents(corpus_paths)
+    if not documents:
+        fallback_root = _PROJECT_ROOT / "data" / "rag"
+        if fallback_root.exists() and str(fallback_root) not in corpus_paths:
+            documents = _iter_corpus_documents([str(fallback_root)])
     if not documents:
         return {"documents": 0, "chunks": 0, "skipped": 0}
 

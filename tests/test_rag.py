@@ -122,3 +122,22 @@ def test_rag_tools_query_auto_ingest(tmp_path: Path, monkeypatch) -> None:
     result = rag_tools.query_playbook("mean reversion in gold", top_k=2, settings=settings_obj)
     assert result["passages"]
     assert len(result["metadata"]) == len(result["passages"])
+
+
+def test_rag_tools_auto_ingest_fallback(tmp_path: Path, monkeypatch) -> None:
+    rag_tools.reset_rag_cache()
+
+    class DummySettings:
+        rag_index_root = str(tmp_path / "index")
+        rag_namespace = "fallback"
+        rag_chunk_size = 128
+        rag_chunk_overlap = 24
+        rag_similarity_threshold = 0.1
+        rag_auto_ingest = True
+        rag_corpus_paths = ["/path/that/does/not/exist"]
+
+    settings_obj = cast(Settings, DummySettings())
+    monkeypatch.setattr(rag_tools, "get_settings", lambda: settings_obj)
+
+    info = rag_tools.ensure_default_corpus_loaded(settings=settings_obj, force=True)
+    assert info["documents"] > 0

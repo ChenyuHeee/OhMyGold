@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from importlib import import_module
-from typing import Any, Dict
+from datetime import datetime, timezone
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 try:  # pragma: no cover
-    pd = import_module("pandas")
+    import pandas as pd
 except ModuleNotFoundError as exc:  # pragma: no cover
     raise ImportError("The 'pandas' package is required for data tool helpers.") from exc
 
@@ -16,6 +15,9 @@ from ..services.market_data import fetch_price_history, market_snapshot
 from ..services.indicators import compute_indicators
 from ..services.sentiment import collect_sentiment_snapshot
 from ..utils.serialization import df_to_records
+from ..utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_gold_market_snapshot(symbol: str = "XAUUSD", days: int = 30) -> Dict[str, Any]:
@@ -26,7 +28,7 @@ def get_gold_market_snapshot(symbol: str = "XAUUSD", days: int = 30) -> Dict[str
     indicators = compute_indicators(history)
 
     return {
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "symbol": symbol,
         "market": snapshot,
         "indicators": {
@@ -36,50 +38,106 @@ def get_gold_market_snapshot(symbol: str = "XAUUSD", days: int = 30) -> Dict[str
     }
 
 
+def _fetch_series_with_fallback(
+    candidates: Iterable[Tuple[str, str]],
+    days: int,
+) -> Optional[Tuple[str, str, pd.Series, pd.Series]]:
+    """Return aligned close series for the first successful symbol pair."""
+
+    for gold_symbol, silver_symbol in candidates:
+        try:
+            gold_history = fetch_price_history(gold_symbol, days=days)
+            silver_history = fetch_price_history(silver_symbol, days=days)
+        except Exception as exc:  # pragma: no cover - defensive guard for provider errors
+            logger.warning(
+                "获取金银比行情失败：%s/%s -> %s", gold_symbol, silver_symbol, exc
+            )
+            continue
+
+        if gold_history.empty or silver_history.empty:
+            logger.info(
+                "金银比行情为空，尝试下一组合：%s/%s", gold_symbol, silver_symbol
+            )
+            continue
+
+        merged = pd.DataFrame(
+            {
+                "gold": gold_history["Close"],
+                "silver": silver_history["Close"],
+            }
+        ).dropna()
+        if merged.empty:
+            logger.info(
+                "金银比闭盘数据缺失，尝试下一组合：%s/%s", gold_symbol, silver_symbol
+            )
+            continue
+
+        return gold_symbol, silver_symbol, merged["gold"], merged["silver"]
+
+    return None
+
+
 def get_gold_silver_ratio(days: int = 60) -> Dict[str, Any]:
-    """Calculate the gold/silver ratio using GLD and SLV ETFs as proxies."""
+    """Calculate the gold/silver ratio using the shared market data pipeline."""
 
-    try:  # pragma: no cover
-        yf = import_module("yfinance")
-    except ModuleNotFoundError as exc:  # pragma: no cover
-        raise ImportError("The 'yfinance' package is required for gold/silver ratio.") from exc
+    symbol_pairs: Tuple[Tuple[str, str], ...] = (
+        ("XAUUSD", "XAGUSD"),
+        ("GC=F", "SI=F"),
+        ("GLD", "SLV"),
+    )
 
-    gold = yf.download("GLD", period=f"{days}d")
-    silver = yf.download("SLV", period=f"{days}d")
+    result = _fetch_series_with_fallback(symbol_pairs, days)
+    if result is None:
+        return {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "error": "Unable to source gold/silver prices via configured providers",
+        }
 
-    if gold.empty or silver.empty:
-        return {"error": "Unable to download GLD/SLV data"}
-
-    ratio = gold["Close"] / silver["Close"]
+    gold_symbol, silver_symbol, gold_series, silver_series = result
+    ratio_series = gold_series / silver_series
+    ratio_series = ratio_series.dropna()
 
     return {
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "pair": {"gold": gold_symbol, "silver": silver_symbol},
         "series": [
             {
                 "date": index.strftime("%Y-%m-%d"),
                 "ratio": float(value) if not pd.isna(value) else None,
             }
-            for index, value in ratio.tail(30).items()
+            for index, value in ratio_series.tail(30).items()
         ],
-        "latest": float(ratio.iloc[-1]) if not pd.isna(ratio.iloc[-1]) else None,
+        "latest": float(ratio_series.iloc[-1]) if not ratio_series.empty else None,
     }
 
 
 def get_macro_snapshot() -> Dict[str, Any]:
     """Collect macro proxies such as DXY and 10Y real yields (TIPS)."""
 
-    try:  # pragma: no cover
-        yf = import_module("yfinance")
-    except ModuleNotFoundError as exc:  # pragma: no cover
-        raise ImportError("The 'yfinance' package is required for macro snapshot.") from exc
+    def _first_available(symbols: Iterable[str], days: int) -> Tuple[Optional[str], pd.DataFrame]:
+        for symbol in symbols:
+            try:
+                history = fetch_price_history(symbol, days=days)
+            except Exception as exc:  # pragma: no cover - defensive guard
+                logger.warning("宏观行情抓取失败：%s -> %s", symbol, exc)
+                continue
+            if not history.empty:
+                return symbol, history
+        return None, pd.DataFrame()
 
-    dxy = yf.download("DX-Y.NYB", period="30d")
-    tips = yf.download("TIP", period="30d")
+    dxy_symbol, dxy_history = _first_available(("DX-Y.NYB", "DXY", "DX-Y"), days=45)
+    tip_symbol, tip_history = _first_available(("TIP", "IEF"), days=45)
 
     result: Dict[str, Any] = {
-        "generated_at": datetime.utcnow().isoformat(),
-        "usd_index": df_to_records(dxy.tail(10), include_index=True),
-        "tips_etf": df_to_records(tips.tail(10), include_index=True),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "usd_index": {
+            "symbol": dxy_symbol,
+            "records": df_to_records(dxy_history.tail(10), include_index=True),
+        },
+        "tips_etf": {
+            "symbol": tip_symbol,
+            "records": df_to_records(tip_history.tail(10), include_index=True),
+        },
     }
     return result
 
@@ -87,7 +145,7 @@ def get_macro_snapshot() -> Dict[str, Any]:
 def get_event_calendar() -> Dict[str, Any]:
     """Placeholder economic calendar to be replaced with real provider."""
 
-    today = datetime.utcnow().date().isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
     return {
         "date": today,
         "events": [

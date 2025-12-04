@@ -6,6 +6,24 @@ import json
 from functools import lru_cache
 from typing import Any, Dict, List
 
+# Provider-specific symbol remapping ensures we can query preferred contracts
+# without relying on downstream fallback chains.
+DEFAULT_TWELVEDATA_SYMBOL_MAP: Dict[str, str] = {
+    "XAUUSD": "XAU/USD",
+    "XAGUSD": "XAG/USD",
+    "GC=F": "GC",
+    "SI=F": "SI",
+    "DXY": "DXY",
+    "TIP": "TIP",
+}
+
+DEFAULT_POLYGON_SYMBOL_MAP: Dict[str, str] = {
+    "XAUUSD": "C:XAUUSD",
+    "XAGUSD": "C:XAGUSD",
+    "DXY": "I:DX",
+    "TIP": "TIP",
+}
+
 from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
@@ -35,6 +53,13 @@ class Settings(BaseSettings):
     daily_drawdown_pct: float = Field(3.0)
     default_position_oz: float = Field(0.0)
     pnl_today_millions: float = Field(0.0)
+    hard_gate_enabled: bool = Field(True)
+    hard_gate_fail_fast: bool = Field(True)
+    hard_gate_max_position_utilization: float | None = Field(1.0)
+    hard_gate_max_single_order_oz: float | None = Field(None)
+    hard_gate_max_stress_loss_millions: float | None = Field(None)
+    hard_gate_correlation_threshold: float | None = Field(0.9)
+    hard_gate_require_stop_loss: bool = Field(True)
     compliance_allowed_instruments: List[str] = Field(
         default_factory=lambda: ["XAUUSD", "GC", "GC=F", "GLD"]
     )
@@ -82,10 +107,14 @@ class Settings(BaseSettings):
     twelve_data_api_key: str | None = Field(None)
     twelve_data_base_url: str = Field("https://api.twelvedata.com")
     twelve_data_symbol: str | None = Field(None)
-    twelve_data_symbol_map: Dict[str, str] = Field(default_factory=dict)
+    twelve_data_symbol_map: Dict[str, str] = Field(
+        default_factory=lambda: dict(DEFAULT_TWELVEDATA_SYMBOL_MAP)
+    )
     polygon_api_key: str | None = Field(None)
     polygon_base_url: str = Field("https://api.polygon.io")
-    polygon_symbol_map: Dict[str, str] = Field(default_factory=dict)
+    polygon_symbol_map: Dict[str, str] = Field(
+        default_factory=lambda: dict(DEFAULT_POLYGON_SYMBOL_MAP)
+    )
     rag_index_root: str = Field("data/rag-index")
     rag_namespace: str = Field("gold-playbooks")
     rag_chunk_size: int = Field(200)
@@ -209,6 +238,22 @@ class Settings(BaseSettings):
             coerced["market_data_retry_total"] = max(0, int(coerced["market_data_retry_total"]))
         if "market_data_retry_backoff" in coerced:
             coerced["market_data_retry_backoff"] = max(0.0, float(coerced["market_data_retry_backoff"]))
+        if "hard_gate_max_position_utilization" in coerced and coerced["hard_gate_max_position_utilization"] is not None:
+            coerced["hard_gate_max_position_utilization"] = max(
+                0.0, float(coerced["hard_gate_max_position_utilization"])
+            )
+        if "hard_gate_max_single_order_oz" in coerced and coerced["hard_gate_max_single_order_oz"] is not None:
+            coerced["hard_gate_max_single_order_oz"] = max(
+                0.0, float(coerced["hard_gate_max_single_order_oz"])
+            )
+        if "hard_gate_max_stress_loss_millions" in coerced and coerced["hard_gate_max_stress_loss_millions"] is not None:
+            coerced["hard_gate_max_stress_loss_millions"] = max(
+                0.0, float(coerced["hard_gate_max_stress_loss_millions"])
+            )
+        if "hard_gate_correlation_threshold" in coerced and coerced["hard_gate_correlation_threshold"] is not None:
+            coerced["hard_gate_correlation_threshold"] = max(
+                0.0, min(1.0, float(coerced["hard_gate_correlation_threshold"]))
+            )
         if "data_mode" in coerced:
             coerced["data_mode"] = str(coerced["data_mode"]).lower()
         if "rag_chunk_size" in coerced:
@@ -228,6 +273,18 @@ class Settings(BaseSettings):
             data = dict(data)
             data["alpha_vantage_api_key"] = data.pop("alphavantage_api_key")
         return data
+
+    @model_validator(mode="after")
+    def _merge_default_symbol_maps(self) -> "Settings":
+        self.twelve_data_symbol_map = {
+            **DEFAULT_TWELVEDATA_SYMBOL_MAP,
+            **self.twelve_data_symbol_map,
+        }
+        self.polygon_symbol_map = {
+            **DEFAULT_POLYGON_SYMBOL_MAP,
+            **self.polygon_symbol_map,
+        }
+        return self
 
 
 @lru_cache(maxsize=1)

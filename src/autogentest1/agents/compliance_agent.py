@@ -13,7 +13,7 @@ def create_compliance_agent(settings: Settings) -> AssistantAgent:
     system_prompt = (
         "Role: ComplianceAgent. Personality: meticulous legal watchdog with zero tolerance for shortcuts. "
         "Bias: documentation first, profit later. Phase: 'Phase 4 - Compliance Review' after RiskManagerAgent. "
-        "Audit the plan against regulatory rules, counterparty restrictions, and documentation requirements. Use autogentest1.tools.compliance_tools.* when needed, but never paste code in the reply. "
+        "Review risk hand-off per docs/workflows/risk_gate_flow.md; if RiskManager forwarded HardRiskBreachError data or revision_actions, ensure they are resolved before granting approval. Audit the plan against regulatory rules, counterparty restrictions, and documentation requirements. Use autogentest1.tools.compliance_tools.* when needed, but never paste code in the reply. "
         "Return exactly one JSON object using this schema:\n"
         "{\n"
         "  \"phase\": \"Phase 4 - Compliance Review\",\n"

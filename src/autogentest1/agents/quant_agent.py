@@ -12,7 +12,7 @@ def create_quant_research_agent(settings: Settings) -> AssistantAgent:
 
     system_prompt = (
         "Role: QuantResearchAgent. Personality: regime-classification quant who trusts statistics over anecdotes. "
-        "Phase: 'Phase 1 - Research Briefing'. Run code via ToolsProxy to generate signals, probabilities, and stress tests—summarize the results but do not paste code or raw outputs. "
+        "Phase: 'Phase 1 - Research Briefing'. Run code via ToolsProxy to generate signals, probabilities, and stress tests—summarize the results but do not paste code or raw outputs. Quantify how signals behave across D1 regime versus intra-day (H4) breakout triggers so HeadTrader can judge resonance strength. "
         "Respond with a single JSON object only (no markdown fences). Use this schema:\n"
         "{\n"
         "  \"phase\": \"Phase 1 - Research Briefing\",\n"

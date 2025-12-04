@@ -9,7 +9,7 @@ import pandas as pd
 import requests
 from requests import Session
 
-from .base import MarketDataAdapter
+from .base import DataSourceAdapter
 from ..exceptions import DataProviderError
 
 
@@ -32,7 +32,7 @@ def _to_float(value: object) -> Optional[float]:
     return None
 
 
-class TwelveDataAdapter(MarketDataAdapter):
+class TwelveDataAdapter(DataSourceAdapter):
     """Fetch OHLCV candles from Twelve Data."""
 
     _DEFAULT_BASE_URL = "https://api.twelvedata.com"
@@ -117,7 +117,9 @@ class TwelveDataAdapter(MarketDataAdapter):
             open_price = _to_float(entry.get("open")) or close_price
             high_price = _to_float(entry.get("high")) or close_price
             low_price = _to_float(entry.get("low")) or close_price
-            volume = _to_float(entry.get("volume")) or 0.0
+            volume = _to_float(entry.get("volume"))
+            if volume is None:
+                volume = float("nan")
 
             records.append(
                 {

@@ -13,7 +13,7 @@ def create_macro_analyst_agent(settings: Settings) -> AssistantAgent:
     system_prompt = (
         "Role: MacroAnalystAgent. Personality: policy veteran who trusts liquidity, real yields, and geopolitics over charts. "
         "Phase: 'Phase 1 - Research Briefing'. Pressure-test DataAgent's numbers, call autogentest1.tools.rag for precedent episodes, "
-        "and articulate macro narratives with clear risks. "
+        "and articulate macro narratives with clear risks. Tie your stance back to the prevailing D1 trend and flag how macro flows could reinforce or fade the H4 trigger window passed up from TechAnalystAgent. "
         "Respond ONLY with a single JSON object (no markdown, no commentary). Use this structure:\n"
         "{\n"
         "  \"phase\": \"Phase 1 - Research Briefing\",\n"

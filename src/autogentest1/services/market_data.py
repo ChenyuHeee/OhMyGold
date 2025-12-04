@@ -5,9 +5,9 @@ from __future__ import annotations
 import math
 import tempfile
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -25,13 +25,16 @@ from ..utils.logging import get_logger
 from ..utils.serialization import df_to_records
 from .data_providers import (
     AlphaVantageFXAdapter,
+    CacheConfig,
+    DataSourceAdapter,
     IBKRAdapter,
-    MarketDataAdapter,
     PolygonAdapter,
+    RetryConfig,
     TanshuGoldAdapter,
     TwelveDataAdapter,
     YahooFinanceAdapter,
 )
+from .data_router import DataSourceRouter
 from .exceptions import DataProviderError, DataStalenessError
 from .indicators import compute_indicators
 
@@ -87,7 +90,8 @@ def _cached_session(settings) -> Optional[Session]:
 
 def _mock_price_history(symbol: str, days: int) -> pd.DataFrame:
     periods = max(days, 30)
-    idx = pd.bdate_range(end=datetime.utcnow(), periods=periods)
+    now_utc = datetime.now(timezone.utc)
+    idx = pd.bdate_range(end=now_utc, periods=periods, tz="UTC").tz_localize(None)
     seed = abs(hash(symbol)) % (2**32)
     rng = np.random.default_rng(seed)
     base_price = 1850 + (seed % 200) * 0.5
@@ -115,12 +119,10 @@ def _mock_price_history(symbol: str, days: int) -> pd.DataFrame:
 
 
 def _retry_fetch(
-    adapter: MarketDataAdapter,
-    symbol: str,
+    fetcher: Callable[[], pd.DataFrame],
     *,
-    start: datetime,
-    end: datetime,
-    session: Optional[Session],
+    symbol: str,
+    provider_label: str,
     settings,
 ) -> pd.DataFrame:
     attempts = max(1, settings.market_data_retry_total + 1)
@@ -128,23 +130,26 @@ def _retry_fetch(
 
     for attempt in range(1, attempts + 1):
         try:
-            return adapter.fetch_price_history(symbol, start=start, end=end, session=session)
+            return fetcher()
         except DataProviderError:
             raise
         except Exception as exc:  # pragma: no cover - exercised via live fetch in integration runs
             last_error = exc
             wait_seconds = max(0.0, settings.market_data_retry_backoff) * math.pow(2, attempt - 1)
             logger.warning(
-                "行情抓取失败（第%d/%d次，标的=%s）：%s",
+                "行情抓取失败（第%d/%d次，标的=%s，来源=%s）：%s",
                 attempt,
                 attempts,
                 symbol,
+                provider_label,
                 exc,
             )
             if attempt < attempts and wait_seconds:
                 time.sleep(min(wait_seconds, 30))
 
-    raise DataProviderError(f"多次尝试后仍无法获取行情 {symbol}：{last_error}") from last_error
+    raise DataProviderError(
+        f"多次尝试后仍无法获取行情 {symbol}（来源 {provider_label}）：{last_error}"
+    ) from last_error
 
 
 def _ensure_freshness(history: pd.DataFrame, *, max_age_minutes: int) -> None:
@@ -157,7 +162,12 @@ def _ensure_freshness(history: pd.DataFrame, *, max_age_minutes: int) -> None:
         last_dt = last_index.to_pydatetime()
     else:
         last_dt = datetime.fromisoformat(str(last_index))
-    age = datetime.utcnow() - last_dt
+    now_utc = datetime.now(timezone.utc)
+    if last_dt.tzinfo is None:
+        last_dt = last_dt.replace(tzinfo=timezone.utc)
+    else:
+        last_dt = last_dt.astimezone(timezone.utc)
+    age = now_utc - last_dt
     if age > timedelta(minutes=max_age_minutes):
         raise DataStalenessError(
             f"最新行情已经超过{int(age.total_seconds() // 60)}分钟（上限{max_age_minutes}分钟）"
@@ -168,7 +178,7 @@ def _normalized_provider(value: Optional[str]) -> str:
     return (value or "yfinance").lower().strip()
 
 
-def _instantiate_adapter(provider_key: str, settings) -> Optional[Tuple[MarketDataAdapter, str]]:
+def _instantiate_adapter(provider_key: str, settings) -> Optional[Tuple[DataSourceAdapter, str]]:
     try:
         if provider_key in {"yfinance", "yahoo"}:
             return YahooFinanceAdapter(), "Yahoo Finance"
@@ -213,9 +223,9 @@ def _instantiate_adapter(provider_key: str, settings) -> Optional[Tuple[MarketDa
     return None
 
 
-def _build_provider_chain(settings) -> List[Tuple[str, MarketDataAdapter, str]]:
+def _build_provider_chain(settings) -> List[Tuple[str, DataSourceAdapter, str]]:
     primary = _normalized_provider(settings.data_provider)
-    chain: List[Tuple[str, MarketDataAdapter, str]] = []
+    chain: List[Tuple[str, DataSourceAdapter, str]] = []
     seen: set[str] = set()
 
     def add(provider: str) -> None:
@@ -266,7 +276,8 @@ def _build_provider_chain(settings) -> List[Tuple[str, MarketDataAdapter, str]]:
 
 
 def _attempt_fetch_with_logging(
-    adapter: MarketDataAdapter,
+    router: DataSourceRouter,
+    provider_key: str,
     symbol: str,
     *,
     start: datetime,
@@ -277,8 +288,19 @@ def _attempt_fetch_with_logging(
 ) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
     label = provider_label or "未知来源"
     logger.info("行情下载：%s（来源：%s）", symbol, label)
+
+    def fetcher() -> pd.DataFrame:
+        return router.fetch_ohlcv(
+            symbol,
+            start,
+            end,
+            timeframe="1d",
+            prefer=provider_key,
+            session=session,
+        )
+
     try:
-        data = _retry_fetch(adapter, symbol, start=start, end=end, session=session, settings=settings)
+        data = _retry_fetch(fetcher, symbol=symbol, provider_label=label, settings=settings)
     except DataProviderError as exc:
         logger.warning("行情获取失败（%s）：%s", label, exc)
         return None, str(exc)
@@ -303,18 +325,39 @@ def fetch_price_history(symbol: str, days: int = 14) -> pd.DataFrame:
     if mode == "mock":
         return _mock_price_history(symbol, days)
 
-    end = datetime.utcnow()
+    end = datetime.now(timezone.utc)
     start = end - timedelta(days=days * 2)
     session = _cached_session(settings)
 
     provider_chain = _build_provider_chain(settings)
 
+    router = DataSourceRouter()
+    if settings.market_data_cache_minutes > 0:
+        router.configure_cache(
+            CacheConfig(
+                expire_after=timedelta(minutes=settings.market_data_cache_minutes),
+                namespace="market",
+            )
+        )
+    router.configure_retry(
+        RetryConfig(
+            total=max(0, settings.market_data_retry_total),
+            backoff=max(0.0, settings.market_data_retry_backoff),
+        )
+    )
+
+    for index, (provider_key, adapter, _) in enumerate(provider_chain):
+        router.register(provider_key, adapter)
+        if index == 0 and "live" not in router.adapters:
+            router.adapters["live"] = router.adapters[provider_key]
+
     data: Optional[pd.DataFrame] = None
     error: Optional[str] = None
 
-    for index, (_, adapter, label) in enumerate(provider_chain):
+    for index, (provider_key, _adapter, label) in enumerate(provider_chain):
         data, error = _attempt_fetch_with_logging(
-            adapter,
+            router,
+            provider_key,
             symbol,
             start=start,
             end=end,

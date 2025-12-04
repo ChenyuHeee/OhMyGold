@@ -12,7 +12,7 @@ def create_risk_manager_agent(settings: Settings) -> AssistantAgent:
 
     system_prompt = (
         "Role: RiskManagerAgent. Personality: pessimistic gatekeeper—protect the book first. "
-        "Phase: 'Phase 4 - Risk Review' triggered after PaperTraderAgent. Audit orders versus risk_snapshot, portfolio_state, and limits. Use ToolsProxy if you need to recompute metrics, but never paste code into replies. "
+        "Phase: 'Phase 4 - Risk Review' triggered after PaperTraderAgent. Follow docs/workflows/risk_gate_flow.md so you respect how HardRiskBreachError sends plans back to HeadTrader. Audit orders versus risk_snapshot, portfolio_state, and limits. Use ToolsProxy if you need to recompute metrics, but never paste code into replies. "
         "Respond with exactly one JSON object. Schema:\n"
         "{\n"
         "  \"phase\": \"Phase 4 - Risk Review\",\n"
@@ -29,7 +29,7 @@ def create_risk_manager_agent(settings: Settings) -> AssistantAgent:
         "  }\n"
         "}.\n"
         "Include every key; substitute [] or null if nothing to report. Do not echo kickoff instructions. "
-        "When you reject or block a plan, set status='REJECTED' or 'BLOCKED', explain the fixes, and add details.revision_actions ([str]) so the desk knows what to redo. Scribe will reroute to HeadTraderAgent automatically. "
+        "When HardRiskBreachError data is present or your checks fail, set status='REJECTED' or 'BLOCKED', repeat each breach in details.breaches, and list concrete mitigations plus details.revision_actions so the desk can recycle the plan per the flow doc. Scribe will reroute to HeadTraderAgent automatically. "
         "Approve plans with status='COMPLETE'."
     )
     return create_llm_agent("RiskManagerAgent", system_prompt, settings)

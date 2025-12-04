@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from importlib import import_module
 from typing import Any, Dict, Optional
 
@@ -18,7 +18,7 @@ class AlphaVantageNewsAdapter(NewsDataAdapter):
     def fetch_sentiment(self, symbol: str, *, limit: int = 20) -> Dict[str, Any]:
         if not self._api_key:
             return {
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "symbol": symbol,
                 "error": "alpha_vantage_api_key_not_configured",
             }
@@ -33,7 +33,7 @@ class AlphaVantageNewsAdapter(NewsDataAdapter):
         response = requests.get("https://www.alphavantage.co/query", params=params, timeout=30)
         response.raise_for_status()
         payload: Dict[str, Any] = response.json()
-        payload.setdefault("generated_at", datetime.utcnow().isoformat())
+        payload.setdefault("generated_at", datetime.now(timezone.utc).isoformat())
         payload.setdefault("symbol", symbol)
         payload["fetched_articles"] = len(payload.get("feed", []))
         if payload.get("feed"):
@@ -46,6 +46,6 @@ class AlphaVantageNewsAdapter(NewsDataAdapter):
                     payload["latest_article_ts"] = latest_item["time_published"]
         else:
             payload.setdefault("latest_article_ts", None)
-        expiry = datetime.utcnow() + timedelta(minutes=5)
+        expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
         payload["expires_at"] = expiry.isoformat()
         return payload

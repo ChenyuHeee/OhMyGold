@@ -10,7 +10,7 @@ import pandas as pd
 import requests
 from requests import Session
 
-from .base import MarketDataAdapter
+from .base import DataSourceAdapter
 from ..exceptions import DataProviderError
 
 
@@ -37,7 +37,7 @@ def _parse_symbol(symbol: str) -> _ParsedSymbol:
     return _ParsedSymbol(base=base, quote=quote)
 
 
-class AlphaVantageFXAdapter(MarketDataAdapter):
+class AlphaVantageFXAdapter(DataSourceAdapter):
     """Fetch OHLC price history from Alpha Vantage's FX_DAILY endpoint."""
 
     _API_URL = "https://www.alphavantage.co/query"

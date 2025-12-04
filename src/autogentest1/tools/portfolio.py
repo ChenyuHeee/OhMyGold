@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 from ..services.state import load_portfolio_state, save_portfolio_state
@@ -19,6 +19,6 @@ def update_portfolio_state(update: Dict[str, Any]) -> Dict[str, Any]:
 
     state = load_portfolio_state()
     state.update(update)
-    state["last_updated"] = datetime.utcnow().isoformat()
+    state["last_updated"] = datetime.now(timezone.utc).isoformat()
     save_portfolio_state(state)
     return state

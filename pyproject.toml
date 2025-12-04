@@ -1,6 +1,6 @@
 [project]
 name = "autogentest1"
-version = "0.1.0"
+version = "0.2.0"
 description = "Multi-agent AutoGen workflow for gold trading analytics powered by DeepSeek."
 readme = "README.md"
 requires-python = ">=3.10"

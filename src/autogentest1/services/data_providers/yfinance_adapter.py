@@ -9,10 +9,10 @@ import pandas as pd
 import yfinance as yf
 from requests import Session
 
-from .base import MarketDataAdapter
+from .base import DataSourceAdapter
 
 
-class YahooFinanceAdapter(MarketDataAdapter):
+class YahooFinanceAdapter(DataSourceAdapter):
     """Fetch OHLCV data using the ``yfinance`` package."""
 
     def fetch_price_history(

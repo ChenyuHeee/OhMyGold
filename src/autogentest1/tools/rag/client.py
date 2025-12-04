@@ -36,9 +36,9 @@ class HashingEmbeddingFunction:
             raise ValueError("dimensions must be positive")
         self.dimensions = dimensions
 
-    def __call__(self, texts: Sequence[str]) -> List[List[float]]:
+    def __call__(self, input: Sequence[str]) -> List[List[float]]:
         vectors: List[List[float]] = []
-        for text in texts:
+        for text in input:
             counts = [0.0] * self.dimensions
             for token in _tokenize(text):
                 digest = hashlib.sha1(token.encode("utf-8")).hexdigest()
@@ -49,6 +49,17 @@ class HashingEmbeddingFunction:
                 counts = [value / norm for value in counts]
             vectors.append(counts)
         return vectors
+
+    def name(self) -> str:
+        """Return the identifier expected by newer Chroma releases."""
+
+        return "autogentest1-hashing"
+
+    def embed_documents(self, input: Sequence[str]) -> List[List[float]]:  # pragma: no cover - thin wrapper
+        return self(input)
+
+    def embed_query(self, input: Sequence[str]) -> List[List[float]]:  # pragma: no cover - thin wrapper
+        return self(input)
 
 
 @dataclass
@@ -216,7 +227,7 @@ class RagService:
         result = self._collection.query(
             query_texts=[question],
             n_results=limit,
-            include=["documents", "metadatas", "distances", "ids"],
+            include=["documents", "metadatas", "distances"],
         )
 
         documents = (result.get("documents") or [[]])[0]
@@ -229,9 +240,12 @@ class RagService:
         metadata: List[Dict[str, Any]] = []
         chunk_ids: List[str] = []
         threshold = max(0.0, float(self.config.similarity_threshold))
-        for doc, meta, distance, chunk_id in zip(documents, metadatas, distances, ids):
+        for index, doc in enumerate(documents):
             if not isinstance(doc, str):
                 continue
+            meta = metadatas[index] if index < len(metadatas) else {}
+            distance = distances[index] if index < len(distances) else None
+            chunk_id = ids[index] if index < len(ids) else None
             if isinstance(distance, (int, float)):
                 similarity = max(0.0, 1.0 - float(distance))
             else:
@@ -241,7 +255,7 @@ class RagService:
             passages.append(doc)
             scores.append(similarity)
             metadata.append(dict(meta) if isinstance(meta, dict) else {})
-            chunk_ids.append(str(chunk_id))
+            chunk_ids.append(str(chunk_id) if chunk_id is not None else "")
 
         return RagQueryResult(
             question=question,

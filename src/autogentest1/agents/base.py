@@ -28,11 +28,16 @@ def _build_code_execution_config(settings: Settings, agent_name: str) -> Dict[st
 
     base_dir = Path(settings.code_execution_workdir or Path.cwd() / "outputs" / "code_sandbox")
     base_dir.mkdir(parents=True, exist_ok=True)
+    timeout = int(settings.code_execution_timeout)
     executor = LocalCommandLineCodeExecutor(
-        timeout=int(settings.code_execution_timeout),
+        timeout=timeout,
         work_dir=base_dir,
     )
-    return {"executor": executor}
+    return {
+        "executor": executor,
+        "timeout": timeout,
+        "work_dir": base_dir,
+    }
 
 
 def build_llm_config(settings: Settings, *, agent_name: str) -> Dict[str, Any]:

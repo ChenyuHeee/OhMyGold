@@ -7,14 +7,22 @@ from autogentest1.utils.response_validation import validate_workflow_response
 
 def test_response_validation_allows_historical_references() -> None:
     payload = {
-        "phase": "Phase 1",
+        "phase": "Phase 5 - Final Summary",
         "status": "COMPLETE",
         "summary": "Macro context locked in",
         "details": {
             "next_agent": "TechAnalystAgent",
             "historical_references": [
-                {"event": "Volcker tightening", "year": 1979, "takeaway": "Inflation spikes pulled gold higher."},
-                {"event": "Pandemic liquidity rush", "year": 2020, "takeaway": "Initial sell-off followed by reflation rally."},
+                {
+                    "event": "Volcker tightening",
+                    "year": 1979,
+                    "takeaway": "Inflation spikes pulled gold higher.",
+                },
+                {
+                    "event": "Pandemic liquidity rush",
+                    "year": 2020,
+                    "takeaway": "Initial sell-off followed by reflation rally.",
+                },
             ],
             "metrics": {
                 "historical_var_99": -0.025,

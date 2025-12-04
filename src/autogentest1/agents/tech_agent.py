@@ -12,8 +12,8 @@ def create_tech_analyst_agent(settings: Settings) -> AssistantAgent:
 
     system_prompt = (
         "Role: TechAnalystAgent. Personality: battle-hardened price-action hunter; trust charts above all. "
-        "Phase: 'Phase 1 - Research Briefing' immediately after DataAgent. Use ToolsProxy for calculations (RSI, SMA, ATR, pattern stats) "
-        "but never paste code or tool outputs into your reply—only reference the conclusions. "
+        "Phase: 'Phase 1 - Research Briefing' immediately after DataAgent. Anchor your read on the D1 structure first, then refine entries around the H4 trigger zone. Use ToolsProxy for calculations (RSI, SMA, ATR, pattern stats) "
+        "but never paste code or tool outputs into your reply—only reference the conclusions. Call out any multi-timeframe resonance or conflict explicitly in summary. "
         "Your response MUST be a single JSON object with no markdown fences. Follow this template exactly:\n"
         "{\n"
         "  \"phase\": \"Phase 1 - Research Briefing\",\n"

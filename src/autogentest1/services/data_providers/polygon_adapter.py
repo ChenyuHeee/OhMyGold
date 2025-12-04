@@ -10,7 +10,7 @@ import pandas as pd
 from requests import Session
 
 from ..exceptions import DataProviderError
-from .base import MarketDataAdapter
+from .base import DataSourceAdapter
 
 try:  # pragma: no cover - optional dependency resolution handled at runtime
     import requests  # type: ignore
@@ -18,7 +18,7 @@ except Exception:  # pragma: no cover
     requests = None  # type: ignore
 
 
-class PolygonAdapter(MarketDataAdapter):
+class PolygonAdapter(DataSourceAdapter):
     """Fetch daily aggregates from Polygon.io."""
 
     def __init__(

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List
 
 from ..utils.logging import get_logger
@@ -14,7 +14,7 @@ def build_settlement_checklist(symbol: str) -> Dict[str, List[str]]:
     """Return end-of-day tasks for the settlement and logistics teams."""
 
     logger.info("生成结算清单：%s", symbol)
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     return {
         "date": today,
         "sections": [

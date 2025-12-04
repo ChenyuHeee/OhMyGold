@@ -29,6 +29,7 @@ from ..services.macro_feed import collect_macro_highlights
 from ..services.market_data import fetch_price_history, price_history_payload
 from ..services.operations import build_settlement_checklist
 from ..services.risk import RiskLimits, build_risk_snapshot
+from ..services.risk_gate import HardRiskBreachError, enforce_hard_limits
 from ..services.sentiment import collect_sentiment_snapshot
 from ..services.state import load_portfolio_state, update_portfolio_state
 from ..utils.logging import configure_logging, get_logger
@@ -519,6 +520,12 @@ def run_gold_outlook(symbol: str, days: int, *, settings: Settings | None = None
             settings=settings,
         )
 
+    hard_gate_report = enforce_hard_limits(
+        parsed_response or {},
+        context=context_payload,
+        settings=settings,
+    )
+
     result = {
         "context": context_payload,
         "response": final_response,
@@ -526,6 +533,11 @@ def run_gold_outlook(symbol: str, days: int, *, settings: Settings | None = None
         "format_attempts": attempt + 1,
         "rejection_count": rejection_count,
         "override_decision": override_decision,
+        "hard_risk_gate": hard_gate_report.to_dict(),
     }
     logger.info("流程执行完毕")
+
+    if hard_gate_report.breached and settings.hard_gate_fail_fast:
+        raise HardRiskBreachError(hard_gate_report, result=result)
+
     return result
