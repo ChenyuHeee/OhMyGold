@@ -12,6 +12,7 @@ from autogentest1.config.settings import Settings
 def _make_settings(tmp_path: Path, **overrides) -> Settings:
     base = Settings.model_validate(
         {
+            "deepseek_api_key": "test-key",
             "code_execution_enabled": True,
             "code_execution_agents": ["QuantResearchAgent", "TechAnalystAgent"],
             "code_execution_timeout": 123,
@@ -37,7 +38,6 @@ def test_build_code_execution_config_creates_executor(monkeypatch, tmp_path: Pat
 
     config = _build_code_execution_config(settings, "QuantResearchAgent")
     assert config is not None
-    assert config["timeout"] == settings.code_execution_timeout
     assert captured["executor"].timeout == settings.code_execution_timeout
     assert captured["executor"].work_dir.exists()
 
@@ -64,3 +64,4 @@ def test_build_code_execution_config_uses_default_dir(monkeypatch, tmp_path: Pat
     config = _build_code_execution_config(settings, "TechAnalystAgent")
     assert config is not None
     assert created_paths and created_paths[0].exists()
+    assert hasattr(config["executor"], "timeout")

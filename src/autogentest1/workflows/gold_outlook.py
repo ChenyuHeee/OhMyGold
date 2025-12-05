@@ -35,6 +35,7 @@ from ..services.state import load_portfolio_state, update_portfolio_state
 from ..utils.logging import configure_logging, get_logger
 from ..utils.plotting import plot_price_history
 from ..utils.response_validation import validate_workflow_response
+from autogen.exception_utils import NoEligibleSpeakerError
 
 logger = get_logger(__name__)
 
@@ -55,21 +56,88 @@ SCRIBE_AGENT_NAME = "ScribeAgent"
 
 SELF_HANDOFF_ALLOWED: Tuple[str, ...] = ("ToolsProxy",)
 
+AGENT_NAME_ALIASES: Dict[str, str] = {
+    "QuantitativeAnalystAgent": "QuantResearchAgent",
+    "QuantitativeResearchAgent": "QuantResearchAgent",
+    "QuantAnalystAgent": "QuantResearchAgent",
+    "QuantModelAgent": "QuantResearchAgent",
+    "QuantSignalAgent": "QuantResearchAgent",
+    "QuantTeamAgent": "QuantResearchAgent",
+    "TradingStrategyAgent": "HeadTraderAgent",
+    "TradingLeadAgent": "HeadTraderAgent",
+    "StrategyAgent": "HeadTraderAgent",
+    "HeadTrader": "HeadTraderAgent",
+    "TradingDeskLead": "HeadTraderAgent",
+    "PaperTrader": "PaperTraderAgent",
+    "ExecutionAgent": "PaperTraderAgent",
+    "RiskManager": "RiskManagerAgent",
+    "ComplianceOfficerAgent": "ComplianceAgent",
+    "SettlementOfficerAgent": "SettlementAgent",
+}
 
-def _resolve_agent(name: str, agents: Iterable[Any]) -> Any | None:
+ALL_AGENT_NAMES: Tuple[str, ...] = PRIMARY_AGENT_SEQUENCE + (
+    SCRIBE_AGENT_NAME,
+    "ToolsProxy",
+)
+
+_ALL_AGENT_LOWER_LOOKUP: Dict[str, str] = {name.lower(): name for name in ALL_AGENT_NAMES}
+
+
+def _sanitize_agent_key(name: str) -> str:
+    return "".join(ch.lower() for ch in name if ch.isalnum())
+
+
+_ALL_AGENT_SANITIZED_LOOKUP: Dict[str, str] = {
+    _sanitize_agent_key(name): name for name in ALL_AGENT_NAMES
+}
+
+_TERMINATION_TOKENS = {"", "none", "null", "nil", "done", "complete", "finished", "end"}
+
+
+def _canonical_agent_name(name: str | None) -> str | None:
+    """Return the canonical agent name, applying alias and normalization rules."""
+
+    if not name:
+        return name
+    alias = AGENT_NAME_ALIASES.get(name)
+    if alias:
+        return alias
+    stripped = name.strip()
+    if stripped.lower() in _TERMINATION_TOKENS:
+        return None
+    lower_match = _ALL_AGENT_LOWER_LOOKUP.get(stripped.lower())
+    if lower_match:
+        return lower_match
+    sanitized = _sanitize_agent_key(stripped)
+    if sanitized in _TERMINATION_TOKENS:
+        return None
+    normalized = _ALL_AGENT_SANITIZED_LOOKUP.get(sanitized)
+    if normalized:
+        return normalized
+    augmented = _ALL_AGENT_SANITIZED_LOOKUP.get(f"{sanitized}agent")
+    if augmented:
+        return augmented
+    return stripped
+
+
+def _resolve_agent(name: str | None, agents: Iterable[Any]) -> Any | None:
     """Return the agent instance matching the given name if present."""
 
+    canonical = _canonical_agent_name(name) if name else None
+    if not canonical:
+        return None
     for agent in agents:
-        if getattr(agent, "name", None) == name:
+        if getattr(agent, "name", None) == canonical:
             return agent
     return None
 
 
 def _get_next_primary_after(name: str | None) -> str | None:
-    if not name:
+    canonical = _canonical_agent_name(name) if name else None
+    if not canonical:
         return PRIMARY_AGENT_SEQUENCE[0] if PRIMARY_AGENT_SEQUENCE else None
     try:
-        idx = PRIMARY_AGENT_SEQUENCE.index(name)
+        idx = PRIMARY_AGENT_SEQUENCE.index(canonical)
     except ValueError:
         return None
     if idx + 1 < len(PRIMARY_AGENT_SEQUENCE):
@@ -195,14 +263,22 @@ def _select_next_agent(last_speaker: Any, groupchat: Any) -> Any:
             details = parsed.get("details")
             if isinstance(details, dict):
                 next_name = details.get("next_agent")
-                if isinstance(next_name, str) and next_name:
-                    candidate = _resolve_agent(next_name, groupchat.agents)
-                    if candidate is None:
-                        logger.warning("未找到下一代理：%s", next_name)
-                    elif next_name == last_speaker_name and next_name not in SELF_HANDOFF_ALLOWED:
-                        logger.warning("代理 %s 尝试自我交接，已忽略", next_name)
-                    else:
-                        _patch_next_agent_hint(last_message, candidate.name)
+                if isinstance(next_name, str):
+                    canonical_name = _canonical_agent_name(next_name)
+                    if canonical_name is None:
+                        logger.info("识别到终止路由标记：%s，结束流程", next_name)
+                        raise NoEligibleSpeakerError("Workflow reached declared endpoint")
+                    if canonical_name:
+                        candidate = _resolve_agent(canonical_name, groupchat.agents)
+                        if candidate is None:
+                            logger.warning("未找到下一代理：%s", next_name)
+                        elif canonical_name == last_speaker_name and canonical_name not in SELF_HANDOFF_ALLOWED:
+                            logger.warning("代理 %s 尝试自我交接，已忽略", canonical_name)
+                        else:
+                            if canonical_name != next_name:
+                                logger.info("纠正下一代理别名：%s -> %s", next_name, canonical_name)
+                            _patch_next_agent_hint(last_message, candidate.name)
+                            return candidate
 
     if not groupchat.messages:
         first_primary = PRIMARY_AGENT_SEQUENCE[0] if PRIMARY_AGENT_SEQUENCE else None
@@ -227,18 +303,27 @@ def _select_next_agent(last_speaker: Any, groupchat: Any) -> Any:
             details = parsed.get("details")
             if isinstance(details, dict):
                 source_agent = details.get("source_agent")
+        if source_agent:
+            source_agent = _canonical_agent_name(source_agent)
         next_primary = None
         if isinstance(parsed, dict):
             details = parsed.get("details")
             if isinstance(details, dict):
                 hinted_next = details.get("next_agent")
                 logger.info("书记官解析到提示下一代理：%s", hinted_next)
-                if isinstance(hinted_next, str) and hinted_next:
-                    candidate = _resolve_agent(hinted_next, groupchat.agents)
-                    if candidate is not None:
-                        logger.info("书记官遵循提示路由至：%s", candidate.name)
-                        return candidate
-                    logger.warning("提示的下一代理未找到：%s", hinted_next)
+                if isinstance(hinted_next, str):
+                    canonical_hint = _canonical_agent_name(hinted_next)
+                    if canonical_hint is None:
+                        logger.info("书记官识别到流程终止标记：%s", hinted_next)
+                        raise NoEligibleSpeakerError("Workflow reached declared endpoint")
+                    if canonical_hint:
+                        candidate = _resolve_agent(canonical_hint, groupchat.agents)
+                        if candidate is not None:
+                            if canonical_hint != hinted_next:
+                                logger.info("书记官纠正下一代理别名：%s -> %s", hinted_next, canonical_hint)
+                            logger.info("书记官遵循提示路由至：%s", candidate.name)
+                            return candidate
+                        logger.warning("提示的下一代理未找到：%s", hinted_next)
         next_primary = _get_next_primary_after(source_agent)
         if next_primary:
             candidate = _resolve_agent(next_primary, groupchat.agents)
@@ -247,8 +332,8 @@ def _select_next_agent(last_speaker: Any, groupchat: Any) -> Any:
                 if last_message is not None:
                     _patch_next_agent_hint(last_message, getattr(candidate, "name", ""))
                 return candidate
-        logger.info("书记官未找到路由提示，使用自动模式")
-        return "auto"
+        logger.info("书记官未找到路由提示，流程结束")
+        raise NoEligibleSpeakerError("No further agents required")
 
     head_trader = _resolve_agent("HeadTraderAgent", groupchat.agents)
     if head_trader is not None and head_trader is not last_speaker:
@@ -437,18 +522,29 @@ def _solicit_human_override(reason: str, settings: Settings) -> Dict[str, Any]:
     return {"decision": "CUSTOM", "notes": raw}
 
 
-def run_gold_outlook(symbol: str, days: int, *, settings: Settings | None = None) -> Dict[str, Any]:
+def run_gold_outlook(
+    symbol: str,
+    days: int,
+    *,
+    settings: Settings | None = None,
+    context_payload: Dict[str, Any] | None = None,
+    history: Any | None = None,
+) -> Dict[str, Any]:
     """Execute the multi-agent workflow and return the final response payload."""
 
     settings = settings or get_settings()
     configure_logging(settings.log_level)
     logger.info("启动黄金晨会多代理流程：%s（%d天）", symbol, days)
 
-    try:
-        context_payload, history = build_conversation_context(symbol, days, settings)
-    except (DataStalenessError, DataProviderError) as exc:
-        logger.error("数据质量异常，流程终止：%s", exc)
-        raise
+    if context_payload is None or history is None:
+        try:
+            context_payload, history = build_conversation_context(symbol, days, settings)
+        except (DataStalenessError, DataProviderError) as exc:
+            logger.error("数据质量异常，流程终止：%s", exc)
+            raise
+
+    if context_payload is None or history is None:
+        raise RuntimeError("Workflow context preparation failed")
 
     outputs_dir = Path(__file__).resolve().parent.parent / "outputs"
     chart_path = plot_price_history(history, outputs_dir, symbol)

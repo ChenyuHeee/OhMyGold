@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Dict, List
+
+from dotenv import dotenv_values
 
 # Provider-specific symbol remapping ensures we can query preferred contracts
 # without relying on downstream fallback chains.
@@ -81,6 +85,7 @@ class Settings(BaseSettings):
     compliance_require_stop_loss: bool = Field(True)
     compliance_require_take_profit: bool = Field(True)
     local_model_enabled: bool = Field(False)
+    local_model_auto_enable: bool = Field(False)
     local_model_name: str | None = Field("qwen2.5-14b-instruct")
     local_model_base_url: str | None = Field("http://127.0.0.1:11434/v1")
     local_model_api_key: str | None = Field(None)
@@ -133,10 +138,7 @@ class Settings(BaseSettings):
     rag_corpus_paths: List[str] = Field(default_factory=lambda: ["data/rag"])
     risk_news_coupling_enabled: bool = Field(True)
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-    )
+    model_config = SettingsConfigDict()
 
     @classmethod
     def settings_json_loads(cls, value: str) -> Any:
@@ -313,6 +315,10 @@ class Settings(BaseSettings):
             **DEFAULT_POLYGON_SYMBOL_MAP,
             **self.polygon_symbol_map,
         }
+        if not self.local_model_enabled and self.local_model_auto_enable:
+            has_agents = bool(self.local_model_agents)
+            has_endpoint = bool(self.local_model_base_url)
+            self.local_model_enabled = bool(has_agents and has_endpoint)
         return self
 
 
@@ -320,4 +326,27 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Load settings once and cache the instance for reuse."""
 
-    return Settings()  # type: ignore[call-arg]
+    kwargs = _load_dotenv_kwargs()
+    return Settings(**kwargs)  # type: ignore[call-arg]
+
+
+_DOTENV_KWARGS: Dict[str, str] | None = None
+
+
+def _load_dotenv_kwargs() -> Dict[str, str]:
+    global _DOTENV_KWARGS
+    if _DOTENV_KWARGS is not None:
+        return _DOTENV_KWARGS
+    env_path = Path(__file__).resolve().parents[3] / ".env"
+    raw_values = dotenv_values(env_path) if env_path.exists() else {}
+    normalized: Dict[str, str] = {}
+    env_override = {key.lower(): value for key, value in os.environ.items()}
+    for key, value in raw_values.items():
+        if value is None:
+            continue
+        lower_key = key.lower()
+        if lower_key in env_override:
+            continue
+        normalized[lower_key] = value
+    _DOTENV_KWARGS = normalized
+    return normalized

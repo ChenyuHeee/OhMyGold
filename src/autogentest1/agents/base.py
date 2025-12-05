@@ -35,8 +35,6 @@ def _build_code_execution_config(settings: Settings, agent_name: str) -> Dict[st
     )
     return {
         "executor": executor,
-        "timeout": timeout,
-        "work_dir": base_dir,
     }
 
 
