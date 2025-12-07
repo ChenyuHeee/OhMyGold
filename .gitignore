@@ -22,6 +22,7 @@ pytest_cache/
 .env.*
 *.env
 outputs/
-src/autogentest1/outputs/
+src/ohmygold/outputs/
 data/raw/
 charts/
+academic/personal_info.tex

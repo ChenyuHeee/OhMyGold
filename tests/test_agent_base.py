@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
-from autogentest1.agents.base import _build_code_execution_config
-from autogentest1.config.settings import Settings
+from ohmygold.agents.base import _build_code_execution_config
+from ohmygold.config.settings import Settings
 
 
 def _make_settings(tmp_path: Path, **overrides) -> Settings:
@@ -34,7 +34,7 @@ def test_build_code_execution_config_creates_executor(monkeypatch, tmp_path: Pat
         captured["executor"] = obj
         return obj
 
-    monkeypatch.setattr("autogentest1.agents.base.LocalCommandLineCodeExecutor", fake_executor)
+    monkeypatch.setattr("ohmygold.agents.base.LocalCommandLineCodeExecutor", fake_executor)
 
     config = _build_code_execution_config(settings, "QuantResearchAgent")
     assert config is not None
@@ -59,7 +59,7 @@ def test_build_code_execution_config_uses_default_dir(monkeypatch, tmp_path: Pat
         created_paths.append(path)
         return SimpleNamespace(timeout=timeout, work_dir=path)
 
-    monkeypatch.setattr("autogentest1.agents.base.LocalCommandLineCodeExecutor", fake_executor)
+    monkeypatch.setattr("ohmygold.agents.base.LocalCommandLineCodeExecutor", fake_executor)
 
     config = _build_code_execution_config(settings, "TechAnalystAgent")
     assert config is not None

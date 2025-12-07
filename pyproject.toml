@@ -1,5 +1,5 @@
 [project]
-name = "autogentest1"
+name = "ohmygold"
 version = "0.2.0"
 description = "Multi-agent AutoGen workflow for gold trading analytics powered by DeepSeek."
 readme = "README.md"

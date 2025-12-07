@@ -1,7 +1,7 @@
 # 2025-12-04 工作待办（黄金量化）
 
 ## 早盘优先事项
-- [x] 梳理 `autogentest1/services/market_data.py` 与 `autogentest1/tools/data_tools.py` 的调用链，输出当前行情/宏观数据来源图，标记依赖 `yfinance` 的薄弱点。
+- [x] 梳理 `ohmygold/services/market_data.py` 与 `ohmygold/tools/data_tools.py` 的调用链，输出当前行情/宏观数据来源图，标记依赖 `yfinance` 的薄弱点。
 - [x] 起草 `DataSourceAdapter` 设计草图：定义实时（WebSocket）与批量（REST）接口方法、缓存策略以及回测数据切换钩子。
 - [x] 收集 IBKR / Polygon.io / FRED / TradingEconomics 订阅方案与认证流程，列出今日内可启动的接入动作（账号、API Key、沙箱环境）。
 
@@ -12,7 +12,7 @@
 - [x] 消除 `datetime.utcnow()` Deprecation Warning（替换为 `datetime.now(datetime.UTC)`），避免测试输出噪音。
 
 ## 风控硬约束落地
-- [x] 阅读 `autogentest1/workflows/gold_outlook.py` 运行链路，现于 `services/risk_gate.py` 注入硬风控拦截，并在 CLI 层处理 `HardRiskBreachError`。
+- [x] 阅读 `ohmygold/workflows/gold_outlook.py` 运行链路，现于 `services/risk_gate.py` 注入硬风控拦截，并在 CLI 层处理 `HardRiskBreachError`。
 - [x] 罗列并落实硬编码指标（仓位利用率、单笔敞口、止损覆盖、压力损失、当日回撤、相关性），以 `tests/test_risk_gate.py` 验证可复用 `risk_math.py` 输出。
 - [x] 输出一版风控闸门触发流程图（事件 → 校验 → 拒单/平仓 → 通知链路），同步给合规/风控代理提示词更新。
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from autogentest1.utils.response_validation import validate_workflow_response
+from ohmygold.utils.response_validation import validate_workflow_response
 
 
 def test_response_validation_allows_historical_references() -> None:

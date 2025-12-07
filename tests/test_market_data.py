@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from autogentest1.services.market_data import fetch_price_history
+from ohmygold.services.market_data import fetch_price_history
 
 
 @pytest.mark.skip(reason="External data source availability varies; provide integration setup before running.")

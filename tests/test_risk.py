@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from autogentest1.services.risk import (
+from ohmygold.services.risk import (
     CorrelationTarget,
     RiskLimits,
     build_risk_snapshot,

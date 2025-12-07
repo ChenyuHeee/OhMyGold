@@ -8,8 +8,8 @@ When a research agent wants to enrich its draft, it should insert a message such
 
 ```
 @ToolsProxy run
-from autogentest1.tools import data_tools, compute_risk_profile
-from autogentest1.tools.rag import RagConfig, RagService
+from ohmygold.tools import data_tools, compute_risk_profile
+from ohmygold.tools.rag import RagConfig, RagService
 from pathlib import Path
 
 # 1) Pull current market snapshot

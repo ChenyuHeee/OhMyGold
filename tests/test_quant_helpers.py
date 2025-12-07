@@ -8,7 +8,7 @@ import pytest
 
 from pathlib import Path
 
-from autogentest1.tools import quant_helpers
+from ohmygold.tools import quant_helpers
 
 
 def _make_history(values: pd.Series) -> pd.DataFrame:

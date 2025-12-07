@@ -8,8 +8,8 @@
 - **触发阶段**：Phase 1，建议在 QuantResearchAgent 之后执行，向 HeadTrader 提供备选方案。
 
 ## 数据依赖
-1. `autogentest1.tools.quant_helpers.get_gold_silver_ratio()`：返回金银比序列（UTC 时间戳、ratio、rolling z-score）。
-2. `autogentest1.tools.data_tools.get_gold_market_snapshot()`：获取金价、波动率、交易量。
+1. `ohmygold.tools.quant_helpers.get_gold_silver_ratio()`：返回金银比序列（UTC 时间戳、ratio、rolling z-score）。
+2. `ohmygold.tools.data_tools.get_gold_market_snapshot()`：获取金价、波动率、交易量。
 3. `services.market_data.fetch_price_history()`：必要时拉取 GLD/SLV、XAUUSD/XAGUSD 替换数据。
 4. 未来扩展：铂金/钯金、铜与黄金的交叉指标。
 

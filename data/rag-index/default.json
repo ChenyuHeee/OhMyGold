@@ -6,7 +6,7 @@
       "chunk_id": "a1f4fc55-5b26-49b2-8442-4873a4600beb",
       "text": "In October 1979 the Federal Reserve under Paul Volcker shifted to targeting money supply growth, allowing the federal funds rate to jump above 20 percent within months. Inflation expectations had been embedded after a decade of oil shocks and lax policy. Gold, which had already rallied, surged toward 850 dollars per ounce in January 1980 as real yields remained negative and investors searched for inflation insurance. The episode showed that abrupt anti-inflation campaigns can trigger a sharp but temporary spike in bullion prices before policy credibility is restored.",
       "metadata": {
-        "source": "/Users/hechenyu/projects/autogentest1/data/rag/macro_history/1979_volcker_rate_shock.json",
+        "source": "/Users/hechenyu/projects/ohmygold/data/rag/macro_history/1979_volcker_rate_shock.json",
         "event": "Volcker rate shock",
         "year": 1979,
         "category": "Monetary tightening",
@@ -328,7 +328,7 @@
       "chunk_id": "ec93b9cc-841c-48c4-a650-5dd285d15640",
       "text": "During the summer of 2013 the Federal Reserve hinted that its quantitative easing purchases would be tapered. Treasury yields rose more than 120 basis points within three months and emerging market currencies sold off. Gold failed to act as a safe haven because the dollar strengthened and real yields turned positive. Spot prices fell from 1470 to the 1200 area despite geopolitical noise, highlighting that rising term premiums can pressure bullion even when growth anxiety appears.",
       "metadata": {
-        "source": "/Users/hechenyu/projects/autogentest1/data/rag/macro_history/2013_taper_tantrum.json",
+        "source": "/Users/hechenyu/projects/ohmygold/data/rag/macro_history/2013_taper_tantrum.json",
         "event": "Taper tantrum",
         "year": 2013,
         "category": "Policy communication",
@@ -618,7 +618,7 @@
       "chunk_id": "454c3600-f609-46cf-8113-e7c9c5958007",
       "text": "In March 2020 the global dash for cash forced investors to liquidate gold futures alongside equities as funding markets seized. The Federal Reserve opened dollar swap lines and unlimited asset purchases, calming liquidity stress. Once policy support gained traction, gold rebounded from 1450 dollars per ounce to new highs above 2000 by August as real yields collapsed and fiscal stimulus surged. The sequence emphasised that initial liquidity shocks can push bullion lower before reflation narratives dominate.",
       "metadata": {
-        "source": "/Users/hechenyu/projects/autogentest1/data/rag/macro_history/2020_pandemic_liquidity_rush.json",
+        "source": "/Users/hechenyu/projects/ohmygold/data/rag/macro_history/2020_pandemic_liquidity_rush.json",
         "event": "Pandemic liquidity rush",
         "year": 2020,
         "category": "Crisis response",

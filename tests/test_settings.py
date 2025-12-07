@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from autogentest1.config.dump_settings import dump_settings_dict
-from autogentest1.config.settings import Settings
+from ohmygold.config.dump_settings import dump_settings_dict
+from ohmygold.config.settings import Settings
 
 
 def test_local_model_agents_parsing(monkeypatch) -> None:

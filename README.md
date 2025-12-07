@@ -58,15 +58,15 @@ flowchart LR
 4. 所有结果均由 `_ensure_freshness` 校验时间戳（默认 1440 分钟内有效），否则触发降级。
 
 ### 工具层集合
-- `autogentest1.tools.data_tools`
+- `ohmygold.tools.data_tools`
   - `get_gold_market_snapshot` / `get_macro_snapshot` / `get_gold_silver_ratio` / `get_event_calendar`
   - 所有调用都回归 `fetch_price_history`，避免直连 YFinance。
-- `autogentest1.tools.quant_helpers`
+- `ohmygold.tools.quant_helpers`
   - `prepare_quant_dataset`（收益、波动率、均线、RSI、ATR 等）
   - `compute_factor_exposures`（美元、股指、长债等因子暴露）
-- `autogentest1.tools.portfolio`
+- `ohmygold.tools.portfolio`
   - 读取/更新本地组合快照，供 Settlement 维持日度记忆。
-- `autogentest1.tools.rag`
+- `ohmygold.tools.rag`
   - `RagService`（Chroma 持久库） + `rag_tools.query_playbook`
   - `scripts/ingest_macro_history.py` 支持 `--namespace`、`--tag`、`--log-dir`，并写入 `outputs/ingest_logs/ingest_*.json`。
 
@@ -130,10 +130,10 @@ pip install .
 cp .env.example .env
 
 # 3. 运行主工作流（示例：回看 14 天，XAUUSD）
-python -m autogentest1.main --days 14 --symbol XAUUSD
+python -m ohmygold.main --days 14 --symbol XAUUSD
 
 # 4. 开启新闻监听（可选）
-python -m autogentest1.main --watch-news
+python -m ohmygold.main --watch-news
 
 # 5. 构建 RAG 索引并记录日志
 python scripts/ingest_macro_history.py --log-dir outputs/ingest_logs

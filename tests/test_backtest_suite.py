@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from autogentest1.services.backtest_suite import run_parameter_sweep
+from ohmygold.services.backtest_suite import run_parameter_sweep
 
 
 def _mock_history(values: list[float], start: str = "2024-01-01") -> pd.DataFrame:

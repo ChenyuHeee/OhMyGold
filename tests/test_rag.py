@@ -8,10 +8,10 @@ from typing import cast
 
 import pytest
 
-from autogentest1.config.settings import Settings
-from autogentest1.tools import rag_tools
-from autogentest1.tools.rag import RagConfig, RagDocument, RagService
-from autogentest1.tools.rag import client as rag_client
+from ohmygold.config.settings import Settings
+from ohmygold.tools import rag_tools
+from ohmygold.tools.rag import RagConfig, RagDocument, RagService
+from ohmygold.tools.rag import client as rag_client
 
 @pytest.fixture(autouse=True)
 def _force_json_backend(monkeypatch: pytest.MonkeyPatch) -> None:

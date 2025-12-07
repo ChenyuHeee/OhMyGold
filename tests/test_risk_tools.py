@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from autogentest1.services.risk import CorrelationTarget
-from autogentest1.tools import risk_tools
+from ohmygold.services.risk import CorrelationTarget
+from ohmygold.tools import risk_tools
 
 
 def test_compute_risk_profile_respects_overrides(monkeypatch) -> None:

@@ -5,8 +5,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from autogentest1.services.backtest import run_backtest
-from autogentest1.tools import backtest_tools
+from ohmygold.services.backtest import run_backtest
+from ohmygold.tools import backtest_tools
 
 
 def _mock_history(values: list[float], start: str = "2024-01-01") -> pd.DataFrame:

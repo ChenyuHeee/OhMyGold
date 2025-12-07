@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from autogentest1.services.risk_math import (
+from ohmygold.services.risk_math import (
     ScenarioShock,
     apply_scenario,
     historical_var,

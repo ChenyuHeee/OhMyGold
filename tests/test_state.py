@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from autogentest1.services import state
+from ohmygold.services import state
 
 
 def _mock_state_path(tmp_path: Path) -> Path:

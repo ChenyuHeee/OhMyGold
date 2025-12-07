@@ -9,7 +9,7 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Iterable, List
 
-from autogentest1.tools.rag import RagConfig, RagDocument, RagService
+from ohmygold.tools.rag import RagConfig, RagDocument, RagService
 
 
 def _load_markdown(path: Path) -> str:

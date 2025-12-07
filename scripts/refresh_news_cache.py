@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from autogentest1.config.settings import get_settings
-from autogentest1.services.news_ingest import collect_news_articles
-from autogentest1.services.sentiment import collect_sentiment_snapshot
+from ohmygold.config.settings import get_settings
+from ohmygold.services.news_ingest import collect_news_articles
+from ohmygold.services.sentiment import collect_sentiment_snapshot
 
 
 def main() -> None:
@@ -35,7 +35,7 @@ def main() -> None:
         f"{sentiment['score']} (trend {sentiment['score_trend']}, "
         f"class {sentiment['classification']})"
     )
-    cache_dir = Path(__file__).resolve().parents[1] / "src" / "autogentest1" / "outputs"
+    cache_dir = Path(__file__).resolve().parents[1] / "src" / "ohmygold" / "outputs"
     print(f"Cache directory: {cache_dir}")
 
 

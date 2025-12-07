@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from autogentest1.config.settings import Settings
-from autogentest1.services.compliance import evaluate_compliance
-from autogentest1.services.risk import RiskLimits
-from autogentest1.tools.compliance_tools import run_compliance_checks
+from ohmygold.config.settings import Settings
+from ohmygold.services.compliance import evaluate_compliance
+from ohmygold.services.risk import RiskLimits
+from ohmygold.tools.compliance_tools import run_compliance_checks
 
 
 def test_evaluate_compliance_detects_single_order_breach() -> None:

@@ -6,7 +6,7 @@ run.
 
 ## Overview
 
-- **Sink**: JSON Lines files written under `~/.autogentest1/audit/` by default
+- **Sink**: JSON Lines files written under `~/.ohmygold/audit/` by default
   (override via the `AUDIT_LOG_DIRECTORY` setting or environment variable).
 - **Format**: Each event contains timestamped metadata including component name,
   severity, payload summary, and optional tags.
@@ -14,7 +14,7 @@ run.
   `audit-YYYYMMDD.jsonl`.
 - **Enablement**: Controlled by Pydantic settings:
   - `audit_log_enabled` (default `True`)
-  - `audit_log_directory` (default `~/.autogentest1/audit`, accepts absolute paths
+  - `audit_log_directory` (default `~/.ohmygold/audit`, accepts absolute paths
     or project-relative paths)
 
 ## Event Structure
@@ -55,7 +55,7 @@ run.
 
 - **Parsing**: The JSONL format is streaming-friendly; a single `jq` or pandas read
   can reconstruct multi-day audit trails.
-- **Storage hygiene**: Rotate or archive the audit directory (`~/.autogentest1/audit/`
+- **Storage hygiene**: Rotate or archive the audit directory (`~/.ohmygold/audit/`
   by default) regularly if
   the workflow runs at high frequency.
 - **Scenario testing**: Unit tests cover audit writes for both the risk gate and

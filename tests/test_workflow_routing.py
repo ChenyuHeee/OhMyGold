@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from autogentest1.workflows.gold_outlook import (
+from ohmygold.workflows.gold_outlook import (
     _canonical_agent_name,
     _get_next_primary_after,
     _resolve_agent,

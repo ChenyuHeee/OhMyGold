@@ -40,7 +40,7 @@ portfolio optimization (track for later phases).
 ## 3. Module Layout
 
 ```
-src/autogentest1/services/risk_analytics/
+src/ohmygold/services/risk_analytics/
     __init__.py
     tail_risk.py          # VaR / ES calculators
     stress.py             # Scenario application utilities

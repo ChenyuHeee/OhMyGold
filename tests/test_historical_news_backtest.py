@@ -1,6 +1,6 @@
 import pandas as pd
-from autogentest1.services.backtest import run_backtest
-from autogentest1.services.news_ingest import _NEWS_ARCHIVE_FILE
+from ohmygold.services.backtest import run_backtest
+from ohmygold.services.news_ingest import _NEWS_ARCHIVE_FILE
 import json
 import os
 

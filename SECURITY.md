@@ -2,7 +2,7 @@
 
 感谢你愿意帮助我们提升安全性。如果你发现潜在的安全漏洞，请按照以下流程私下披露，以便我们及时修复。
 
-1. **私下报告**：请发送邮件至 `security@autogentest1.dev`，标题包含“Security Disclosure”。
+1. **私下报告**：请发送邮件至 `security@ohmygold.dev`，标题包含“Security Disclosure”。
 2. **提供细节**：
    - 漏洞简要描述及影响范围；
    - 复现步骤或 PoC（如有）；

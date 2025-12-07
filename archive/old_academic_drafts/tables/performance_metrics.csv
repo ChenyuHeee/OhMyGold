@@ -1,0 +1,3 @@
+Strategy,Total Return (%),Annualized Return (%),Annualized Vol (%),Sharpe,Max Drawdown (%),Win Rate (%),Avg Trade Return (%),Trades
+Buy & Hold,128.888,14.856,14.398,1.032,-21.428,100.0,228.888,1.0
+SMA 50/200,72.088,12.351,12.871,0.96,-16.349,42.857,19.981,7.0

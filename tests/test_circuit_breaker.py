@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 
-from autogentest1.config.settings import Settings
-from autogentest1.services.circuit_breaker import evaluate_circuit_breaker
+from ohmygold.config.settings import Settings
+from ohmygold.services.circuit_breaker import evaluate_circuit_breaker
 
 
 def test_circuit_breaker_audit_trigger(tmp_path) -> None:

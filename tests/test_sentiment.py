@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from autogentest1.services.sentiment import collect_sentiment_snapshot
+from ohmygold.services.sentiment import collect_sentiment_snapshot
 
 
 def test_collect_sentiment_snapshot_returns_fallback() -> None:

@@ -5,8 +5,8 @@ and the upgrade roadmap. Update the status column as work progresses.
 
 | Capability | Description | Primary Artifacts | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Retrieval-Augmented briefings | Agents can cite macro history and trading playbooks in outputs | `scripts/ingest_macro_history.py`, `autogentest1/tools/rag` | ✅ Complete | Baseline corpus ingested; monitor coverage expansion backlog. |
-| Structured audit logging | Persist JSONL audit events for risk/circuit breaker decisions | `services/audit.py`, `docs/workflows/audit_logging.md` | ✅ Complete | Defaults now point to `~/.autogentest1/audit`; ensure ops rotation. |
+| Retrieval-Augmented briefings | Agents can cite macro history and trading playbooks in outputs | `scripts/ingest_macro_history.py`, `ohmygold/tools/rag` | ✅ Complete | Baseline corpus ingested; monitor coverage expansion backlog. |
+| Structured audit logging | Persist JSONL audit events for risk/circuit breaker decisions | `services/audit.py`, `docs/workflows/audit_logging.md` | ✅ Complete | Defaults now point to `~/.ohmygold/audit`; ensure ops rotation. |
 | Parameter sweep backtesting | Grid-search helper with ranking, metrics fallback, and docs/tests | `services/backtest_suite.py`, `tools/backtest_tools.py`, `tests/test_backtest_suite.py` | ✅ Complete | Integrate results into agent prompts in a later sprint. |
 | Hard risk gate enhancements | Data-quality aware limits, incremental utilization, session relaxations | `services/risk_gate.py`, `services/risk.py`, `config/settings.py` | ✅ Complete | Continue tuning thresholds with live calibration data. |
 | Portfolio state persistence | Deep merge + patch application for circuit breaker state | `services/state.py`, `tests/test_state.py` | ✅ Complete | Extend to multi-asset holdings in Phase 2. |

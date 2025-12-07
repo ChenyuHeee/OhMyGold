@@ -1,7 +1,7 @@
 # 行情与宏观数据调用链梳理
 
 ## 1. 入口：`run_gold_outlook`
-- 触发位置：`src/autogentest1/workflows/gold_outlook.py` → `build_conversation_context`
+- 触发位置：`src/ohmygold/workflows/gold_outlook.py` → `build_conversation_context`
 - 调用函数：
   - `fetch_price_history`（`services/market_data.py`）
   - `compute_indicators`（技术指标）

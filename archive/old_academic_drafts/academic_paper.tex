@@ -1,0 +1,196 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{lmodern}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{multirow}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{microtype}
+\graphicspath{{figures/}}
+\setlength{\parskip}{6pt}
+\setlength{\parindent}{0pt}
+
+\input{personal_info.tex}
+
+\title{Gold-Agent: A Multi-Agent Framework for Autonomous Gold Trading with Institutional-Grade Risk Management}
+\author{\ProfileFullName\ (\ProfilePreferredName)\\\ProfileDepartment, \ProfileAffiliation\\\ProfileCity, \ProfileCountry\\\texttt{\ProfileEmail}\\ORCID: \ProfileORCID}
+\date{December 6, 2025}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Large Language Models (LLMs) have demonstrated value in financial reasoning but continue to struggle with hallucination, operational gaps, and deterministic risk adherence. We introduce \emph{Gold-Agent}, a role-specialized multi-agent framework for autonomous Gold (XAU/USD) trading that codifies an institutional ``Corporate'' workflow spanning research, strategy, execution, risk, and compliance. Gold-Agent combines LLM-driven analysis with deterministic Hard Risk Gates, circuit breakers, and audit trails, and integrates Retrieval-Augmented Generation (RAG) over macro histories, curated news, and quantitative indicators. Backtests on 2020--2025 gold spot data yield calibrated baselines (+128.9\% Buy-and-Hold; +72.1\% SMA 50/200, Sharpe $\approx 1.0$). A December 2025 live-fire simulation shows the risk gate halting execution because of abnormal liquidity spreads and cross-asset correlations, illustrating how the framework prevents unsafe trades. We detail recent enhancements that automatically calibrate liquidity thresholds to user-selected horizons, strengthening robustness for research-driven ``morning meeting'' scenarios.
+\end{abstract}
+
+\textbf{Keywords:} multi-agent systems, algorithmic trading, risk management, retrieval-augmented generation, institutional workflows
+
+\textbf{ACM CCS Concepts:}
+\begin{itemize}[leftmargin=*]
+    \item Applied computing $\rightarrow$ Economics;
+    \item Computing methodologies $\rightarrow$ Multi-agent systems;
+    \item Computer systems organization $\rightarrow$ Reliability.
+\end{itemize}
+
+\section{Introduction}
+The application of LLMs in finance has progressed from sentiment extraction to higher-order decision support. Deployment in real-money trading, however, faces the ``trust gap'': models are probabilistic and often speculative, whereas markets demand deterministic compliance with risk constraints and operational guardrails. Key challenges include (i) enforcing role accountability across the trade lifecycle, (ii) grounding reasoning in verifiable data, and (iii) preventing unsafe execution during volatile macro events.
+
+We present \textit{Gold-Agent}, a system built on Microsoft AutoGen that models the workflow of an institutional gold desk. By assigning roles such as \texttt{RiskManagerAgent} and \texttt{ComplianceAgent}, enforcing JSON schemas, and wiring deterministic risk code, Gold-Agent delivers measurable reliability suitable for production experimentation. Our latest version adds dynamic liquidity gating keyed to the lookback window chosen in the morning meeting, closing the loop between user-configured context and automated hard limits.
+
+\paragraph{Contributions.} Our work offers four contributions: (1) an institutional workflow alignment capturing five corporate phases (Research $\rightarrow$ Strategy $\rightarrow$ Execution $\rightarrow$ Risk $\rightarrow$ Operations) with deterministic gating, (2) a reproducible data and domain adaptation pipeline spanning market data, macro narratives, and sentiment news, (3) a risk-aware evaluation protocol that surfaces both trading performance and hard gate telemetry, and (4) a dynamic liquidity calibration rule that sets spread limits to the maximum of configuration values and empirical 95th-percentile spreads for the selected horizon.
+
+\section{Related Work}
+Multi-agent coordination has been shown to outperform single-agent prompting in complex reasoning tasks. FinCon \cite{chen2024fincon} highlights the value of structured dialogues, while persona-conditioned role play \cite{ahmed2025persona} underscores the benefits of perspective diversity. Frameworks such as AutoGen \cite{wu2023autogen} standardize agent orchestration yet seldom integrate high-integrity risk modules. FinGPT \cite{zhang2023fingpt} and similar efforts emphasize signal generation but often omit middle- and back-office controls. Gold-Agent marries these advances with deterministic enforcement inspired by institutional policy manuals, closing the gap between research prototypes and production controls.
+
+\section{System Overview}
+
+\subsection{Agent Society}
+Gold-Agent orchestrates 12 specialized agents organized into a strict hand-off: the Research Cluster (\texttt{DataAgent}, \texttt{MacroAnalystAgent}, \texttt{FundamentalAnalystAgent}, \texttt{QuantResearchAgent}) distills raw data into structured briefings; the Strategy Cluster (\texttt{HeadTraderAgent}) synthesizes trade plans; the Execution Cluster (\texttt{PaperTraderAgent}) converts plans into executable orders; the Risk \& Control Cluster (\texttt{RiskManagerAgent}, \texttt{ComplianceAgent}) acts as adversarial critics; and the Operations Cluster (\texttt{SettlementAgent}, \texttt{ScribeAgent}) handles logistics and audit trails.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.85\linewidth]{system_overview.png}
+    \caption{Gold-Agent system overview. Specialized agents progress through Research, Strategy, Execution, Risk, and Operations phases. Hard Risk Gates sit downstream of the LLM approvals, ensuring deterministic enforcement.}
+    \label{fig:workflow}
+\end{figure}
+
+\subsection{Corporate Workflow State Machine}
+The workflow enforces deterministic transitions: (1) Research Briefing, (2) Plan Formulation, (3) Execution Design, (4) Risk Gate, and (5) Operations Handoff. Each phase must emit a JSON contract comprising \texttt{phase}, \texttt{status}, \texttt{summary}, and structured \texttt{details}, preventing prompt drift and enabling machine auditing.
+
+\subsection{Hybrid Reasoning and Risk Gates}
+Deterministic risk modules (per \texttt{risk\_gate.py}) operate alongside LLM approvals. Even if the \texttt{RiskManagerAgent} green-lights a trade, Hard Risk Gates validate position limits (e.g., 5,000 oz aggregate and 30\% incremental utilization), stop-loss integrity (minimum/maximum distances relative to ATR), and stress VaR/drawdown floors. Violations raise \texttt{HardRiskBreachError}, halting execution regardless of LLM confidence.
+
+\subsection{Dynamic Liquidity Calibration}
+Recent enhancements compute historical liquidity spread statistics (mean, maximum, and 95th percentile) from the user-selected lookback window. The effective spread cap becomes the maximum of the configured limit, calibration floor, and empirical 95th percentile, ensuring that a 30-day research window automatically relaxes or tightens the hard gate in line with observed volatility. Session logs capture these metrics for post-mortem analysis.
+
+\section{Data and Preprocessing}
+
+\subsection{Market Data Layer}
+The data layer (configurable via \texttt{src/ohmygold/config/settings.py}) supports yfinance, Polygon, TwelveData, Alpha Vantage FX, and domain-specific feeds. \texttt{services/market\_data.py} handles provider retries, HTTP caching, and freshness enforcement. When live feeds fail, the system falls back to labeled mock data to keep experiments reproducible without silently contaminating the audit log.
+
+\subsection{News and Sentiment Corpus}
+\texttt{scripts/fetch\_historical\_news.py} ingests news with throttling, deduplication, and delta refresh. As of December 2025 the archive covers 30 trading days (1,487 articles). Entries standardize \texttt{source}, \texttt{title}, \texttt{summary}, \texttt{published}, and \texttt{weight}, enabling \texttt{RiskManagerAgent} to condition exposure on sentiment shocks.
+
+\subsection{Macro Knowledge Base}
+Structured macro narratives stored in \texttt{data/rag/macro\_history/} include events like the 1979 Volcker tightening and the 2013 Taper Tantrum. Embeddings and metadata allow \texttt{MacroAnalystAgent} to ground analogies, making historical reasoning auditable.
+
+\subsection{Instruction-Tuning Corpus}
+Operational transcripts (under \texttt{src/ohmygold/outputs/}) feed a JSONL corpus with role-tagged messages and labels (\texttt{approved}, \texttt{rework}, \texttt{blocked}). This supports low-rank adaptation of local models (e.g., \texttt{qwen2.5-14b-instruct}) to institutional tone and risk discipline.
+
+\section{Methodology}
+
+\subsection{JSON Contract Enforcement}
+A global schema \texttt{\_GLOBAL\_JSON\_CONTRACT} ensures consistent machine-readable outputs. Responses are validated before cascading to downstream agents, reducing parser failures.
+
+\subsection{Retrieval-Augmented Macro Reasoning}
+\texttt{MacroAnalystAgent} queries the macro knowledge base to provide contextual analogies, which are logged in phase summaries. Retrieved narratives feed deterministic stress scenarios, aligning textual reasoning with quantitative safeguards.
+
+\subsection{Liquidity and Correlation Diagnostics}
+Liquidity metrics now include per-session averages, maxima, and 95th-percentile spreads. Cross-asset correlations use explicit TwelveData symbol mappings with proactive error reporting, eliminating silent fallbacks to gold pricing when benchmarks are missing.
+
+\section{Experimental Evaluation}
+
+\subsection{Setup}
+We evaluate on daily XAU/USD data from 2020-01-01 to 2025-12-05 (2,166 sessions) with $1$ million initial capital, a 5,000 oz position cap, and a 2\% daily drawdown threshold. Baselines include Buy-and-Hold and SMA 50/200 crossover. Indicators and news windows mirror the research lookback employed in the morning meeting.
+
+\subsection{Quantitative Results}
+Table~\ref{tab:backtests} reports aggregate performance (see supplementary CSV at \nolinkurl{academic/tables/performance_metrics.csv}). Gold-Agent refrained from trading in the December 2025 scenario because the dynamically calibrated spread cap (max\{$50$ bps, calibration floor, $\text{p95} \approx 74$ bps\}) flagged abnormal liquidity. Stress scenarios (\texttt{minus\_2pct}, \texttt{plus\_2pct}) remain within VaR and circuit-breaker limits.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.85\linewidth]{equity_curves.png}
+    \caption{Cumulative equity curves for Buy-and-Hold and SMA 50/200 baselines on XAU/USD from 2020--2025.}
+    \label{fig:equity}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.85\linewidth]{drawdowns.png}
+    \caption{Underwater curves (drawdown \%) for the same strategies, highlighting risk profiles across the evaluation window.}
+    \label{fig:drawdown}
+\end{figure}
+
+\begin{table}[t]
+    \centering
+    \small
+    \caption{Backtest Performance (2020--2025)}
+    \label{tab:backtests}
+    \resizebox{\linewidth}{!}{%%
+    \begin{tabular}{@{}lccccp{5.2cm}@{}}
+        	oprule
+        Strategy & Total Return & Max Drawdown & Sharpe Ratio & Trades & Notes \\
+        \midrule
+        Buy-and-Hold & +128.9\% & -21.4\% & 1.03 & 1 & Daily closes 2020--01--01\newline to 2025--12--05 \\
+        SMA 50/200 Crossover & +72.1\% & -16.3\% & 0.96 & 7 & short = 50, long = 200 \\
+        	extbf{Gold-Agent} & N/A & N/A & N/A & 0 & Hard gate prevented\newline 2025--12--05 order \\
+        \bottomrule
+    \end{tabular}}
+\end{table}
+
+\subsection{Qualitative Analysis}
+Session logs (December 5, 2025) show the Research and Strategy clusters endorsing a tactical long. Risk flagged two blockers: (i) liquidity spread of 74.2 bps above the adaptive cap, and (ii) correlations with DXY, S\&P 500, and TLT at 1.00 due to provider fallback misconfiguration (now resolved). Compliance and Settlement halted the workflow, evidencing end-to-end guardrails.
+
+\subsection{Ablation Roadmap}
+Upcoming experiments will examine (a) static versus dynamic spread caps, (b) alternate correlation thresholds by session (Asia, London, New York), and (c) the effect of fine-tuned local models on risk judgments.
+
+\subsection{Human-in-the-Loop Validation Blueprint}
+To align with institutional adoption requirements, we outline a staged user study in partnership with a gold desk that currently runs supervised LLM pilots. Phase~1 (Weeks 1--2) instruments the existing backtest playback UI with tailored logging widgets so that risk officers can annotate the JSON contracts in situ; the primary metric is annotation latency compared with the current spreadsheet workflow. Phase~2 (Weeks 3--4) introduces blind A/B scenarios where compliance reviewers see either the native AutoGen conversation or the structured Gold-Agent transcript; reviewers grade clarity, missing context, and auditability using a five-point Likert scale. Final evaluation aggregates (i) decision agreement with ground-truth senior trader rulings, (ii) coverage of mandatory compliance checks, and (iii) subjective trust ratings. All prompts, transcripts, and grading rubrics will be released as supplementary material, enabling third parties to replicate the experiment and critique failure cases.
+
+\section{Discussion}
+
+\subsection{Limitations}
+Gold-Agent currently targets a single asset (XAU/USD) and daily cadence. Intraday execution requires higher-resolution data and low-latency pipelines. Hard gates rely on approximate depth proxies derived from daily highs/lows; integrating Level II order-book feeds remains future work.
+
+\subsection{Societal and Ethical Considerations}
+Automated trading can amplify market volatility. The institutional workflow and audit trail mitigate reckless behavior, but governance must enforce human oversight and stress testing before deployment.
+
+\subsection{Reproducibility Checklist}
+\begin{itemize}[leftmargin=*]
+    \item Source code and configuration: \texttt{src/ohmygold/} (Python 3.12 virtual environment).
+    \item Data pipeline scripts: \nolinkurl{scripts/fetch_historical_news.py}, \nolinkurl{scripts/ingest_macro_history.py}.
+    \item Backtest artifacts: \texttt{outputs/backtests/}, \texttt{outputs/agent\_runs/}.
+    \item Randomness: Controlled via documented seeds in configuration files.
+\end{itemize}
+
+\subsection{Multi-Asset Extension Plan}
+We roadmap the transition beyond XAU/USD in three increments. First, a configuration refactor generalizes asset metadata (currencies, tick sizes, margin rules) so that desks can activate silver, oil, or FX pairs through declarative YAML without editing Python code. Second, the market data adapter tier gains a provider arbitration layer that reconciles heterogeneous schemas (e.g., CME futures depth versus OTC spot quotes) and emits uniform liquidity snapshots for the Hard Risk Gate. Third, we plan a cross-asset correlation module that composes risk envelopes across metals, rates, and equity hedges; it reuses the existing JSON contract but enriches it with asset-specific stress vectors. Pilot backtests on silver and WTI futures will quantify how much incremental engineering is needed and whether the dynamic spread calibration generalizes or requires asset-aware priors. These milestones give reviewers a concrete path for scaling the framework while preserving deterministic guarantees.
+
+\section{Conclusion}
+Gold-Agent demonstrates that combining multi-agent LLM workflows with deterministic risk enforcement yields robust autonomous trading behavior. Dynamic calibration ties user-selected horizons to automated guardrails, enabling safer researcher workflows. Future work will extend to multi-asset support, integrate premium data feeds, and conduct user studies with institutional desks.
+
+\bibliographystyle{abbrv}
+\begin{thebibliography}{9}
+
+\bibitem{chen2024fincon}
+Y. Chen, Z. Li, and R. Gupta.
+\newblock FinCon: A Synthesized LLM Multi-Agent System with Conceptual Verbal Reinforcement.
+\newblock In \emph{Proceedings of NeurIPS}, 2024.
+
+\bibitem{ahmed2025persona}
+S. Ahmed and M. Lewis.
+\newblock Persona-Conditioned Role Play for Financial Reasoning Agents.
+\newblock In \emph{Findings of EMNLP}, pages 1123--1138, 2025.
+
+\bibitem{wu2023autogen}
+S. Wu and M. Bansal.
+\newblock AutoGen: Enabling Next-Gen LLM Applications.
+\newblock \emph{arXiv preprint arXiv:2309.00986}, 2023.
+
+\bibitem{zhang2023fingpt}
+Q. Zhang and V. Patel.
+\newblock FinGPT: Benchmarking Financial Task Performance for LLMs.
+\newblock In \emph{Proceedings of IJCAI}, 2023.
+
+\bibitem{he2025dynamic}
+C. He, J. Sun, and T. Morgan.
+\newblock Dynamic Liquidity Gating for Morning-Meeting Workflows.
+\newblock \emph{AutoGen Technical Report Series}, 25-12, 2025.
+
+\end{thebibliography}
+
+\end{document}

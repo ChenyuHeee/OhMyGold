@@ -13,7 +13,7 @@
 ## 核心接口
 
 ```python
-from autogentest1.services.backtest_suite import fetch_and_run_parameter_sweep
+from ohmygold.services.backtest_suite import fetch_and_run_parameter_sweep
 
 result = fetch_and_run_parameter_sweep(
     symbol="XAUUSD",
@@ -51,7 +51,7 @@ result = fetch_and_run_parameter_sweep(
 `tools.backtest_tools.run_parameter_sweep` 封装了同样的逻辑，供 AutoGen 工具代理调用：
 
 ```python
-from autogentest1.tools import run_parameter_sweep
+from ohmygold.tools import run_parameter_sweep
 
 report = run_parameter_sweep(
     symbol="GC=F",

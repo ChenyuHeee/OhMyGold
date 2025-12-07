@@ -1,4 +1,4 @@
-你好！我是 Copilot。作为一名拥有 40 年黄金交易经验的“老法师”，同时也是一名深耕 AI Agent 领域的架构师，我仔细审阅了 `ChenyuHeee/autogentest1` 这个项目。
+你好！我是 Copilot。作为一名拥有 40 年黄金交易经验的“老法师”，同时也是一名深耕 AI Agent 领域的架构师，我仔细审阅了 `ChenyuHeee/ohmygold` 这个项目。
 
 不得不说，这个项目的**架构骨架（Skeleton）非常有专业范儿**。你将交易台的“晨会制度”复刻到了 AI Agent 的协作流中，Role-Playing（角色扮演）的设定非常贴合华尔街真实的 Buy-side 基金运作模式——从宏观（Macro）定调，到基本面（Fundamental）验证，再到量化（Quant）择时，最后由风控（Risk）和合规（Compliance）把关。这种**分层决策机制**是专业交易系统的核心。
 
@@ -102,7 +102,7 @@ graph TD
 
 ## 4. 实施路线图 (Roadmap)
 
-1.  **Phase 1 (基础加固)**: 完善 `autogentest1.tools`，接入更稳定的数据源（考虑 Alpaca 或 Polygon.io 的免费层用于测试），替代纯 Mock 数据。
+1.  **Phase 1 (基础加固)**: 完善 `ohmygold.tools`，接入更稳定的数据源（考虑 Alpaca 或 Polygon.io 的免费层用于测试），替代纯 Mock 数据。
 2.  **Phase 2 (大脑升级)**: 部署 ChromaDB，清洗并存入近 10 年的黄金与宏观经济数据，为 RAG 做准备。
 3.  **Phase 3 (手脚灵活)**: 为 Quant Agent 配置 Docker 运行环境，实现真正的“代码解释器”功能。
 4.  **Phase 4 (实战演练)**: 开发 Backtest 组件，用过去 2 年的历史数据“回放”市场，测试 Agent 团队的表现。
@@ -111,7 +111,7 @@ graph TD
 
 ## 专家结语
 
-你的项目**autogentest1** 是一个非常棒的起点。很多 AI 开发者不懂金融，而很多交易员不懂 AI。你目前的架构正好处于两者的**黄金交叉点**。
+你的项目**ohmygold** 是一个非常棒的起点。很多 AI 开发者不懂金融，而很多交易员不懂 AI。你目前的架构正好处于两者的**黄金交叉点**。
 
 如果能把**历史数据的 RAG** 和**动态代码执行**这两个功能加上，这就不再只是一个 AutoGen 的测试项目，而是一个具备真正商业价值的**AI 投研助理原型**。
 

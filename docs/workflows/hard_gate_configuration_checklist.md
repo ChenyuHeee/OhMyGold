@@ -37,7 +37,7 @@ infrastructure so the hard risk gate continues to match desk policy.
 
 ## Recommended Actions Before Deployment
 
-1. Export prospective environment variables (`poetry run python -m autogentest1.config.dump_settings`).
+1. Export prospective environment variables (`poetry run python -m ohmygold.config.dump_settings`).
 2. Compare overrides with the defaults listed above.
 3. Capture approvals for any deviation from the trading policy.
 4. Audit the deployed environment after rollout to verify the values

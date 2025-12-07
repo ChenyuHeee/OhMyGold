@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from typing import Any, Dict
 
-from autogentest1.config.settings import Settings
-from autogentest1.services.risk_gate import enforce_hard_limits
+from ohmygold.config.settings import Settings
+from ohmygold.services.risk_gate import enforce_hard_limits
 
 
 def _base_settings(**overrides: Any) -> Settings:
