@@ -36,7 +36,7 @@ class CorrelationTarget:
 
 
 DEFAULT_CORRELATION_TARGETS: Sequence[CorrelationTarget] = (
-    CorrelationTarget(symbol="DX-Y.NYB", label="US Dollar Index (DXY)", window=20),
+    CorrelationTarget(symbol="DXY", label="US Dollar Index (DXY)", window=20),
     CorrelationTarget(symbol="^GSPC", label="S&P 500 Index", window=20),
     CorrelationTarget(symbol="TLT", label="Long-Term Treasuries ETF", window=20),
 )

@@ -44,6 +44,30 @@ _CACHE_SESSION: Optional[Session] = None
 _CACHE_SETTINGS: Dict[str, Any] = {}
 
 
+def effective_max_age_minutes(settings) -> int:
+    """Compute a relaxed freshness window on weekends/early Monday.
+
+    Rationale: live markets休市时（周末、假日），最新一根K线可能是周五收盘，
+    严格按 base 窗口会导致硬门槛频繁触发。这里在周六/周日，以及周一（在开盘前
+    常见仍用周五数据）自动放宽到至少 4320 分钟（3 天），其余时间使用原配置。
+    """
+
+    try:
+        base = max(1, int(getattr(settings, "market_data_max_age_minutes", 30)))
+    except Exception:
+        base = 30
+
+    now = datetime.now(timezone.utc)
+    weekday = now.weekday()  # Monday=0 ... Sunday=6
+    weekend_floor = max(base, 4320)  # 3 days to cover Fri close -> Mon open
+
+    if weekday in (5, 6):  # Sat/Sun
+        return weekend_floor
+    if weekday == 0:  # Monday
+        return weekend_floor
+    return base
+
+
 def _cache_path() -> str:
     cache_root = Path(tempfile.gettempdir()) / "ohmygold"
     try:
@@ -398,12 +422,14 @@ def fetch_price_history(symbol: str, days: int = 14) -> pd.DataFrame:
     data = data.tail(days)
     data.index = pd.to_datetime(data.index)
     data.attrs.update(attrs_snapshot)
-    age_minutes = _ensure_freshness(data, max_age_minutes=settings.market_data_max_age_minutes)
+    max_age_minutes = effective_max_age_minutes(settings)
+    age_minutes = _ensure_freshness(data, max_age_minutes=max_age_minutes)
     if selected_provider_key:
         data.attrs["provider_key"] = selected_provider_key
     if selected_provider_label:
         data.attrs["provider_label"] = selected_provider_label
     data.attrs["data_age_minutes"] = age_minutes
+    data.attrs["max_age_minutes"] = max_age_minutes
     data.attrs["history_rows"] = int(len(data))
     return data
 

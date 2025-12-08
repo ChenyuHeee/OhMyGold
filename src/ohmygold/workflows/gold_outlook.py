@@ -26,7 +26,11 @@ from ..services.exceptions import DataProviderError, DataStalenessError, Workflo
 from ..services.fundamentals import collect_fundamental_snapshot
 from ..services.indicators import compute_indicators
 from ..services.macro_feed import collect_macro_highlights
-from ..services.market_data import fetch_price_history, price_history_payload
+from ..services.market_data import (
+    effective_max_age_minutes,
+    fetch_price_history,
+    price_history_payload,
+)
 from ..services.operations import build_settlement_checklist
 from ..services.risk import RiskLimits, build_risk_snapshot
 from ..services.risk_gate import HardRiskBreachError, enforce_hard_limits
@@ -360,6 +364,8 @@ def build_conversation_context(symbol: str, days: int, settings: Settings) -> Tu
     fundamentals = collect_fundamental_snapshot(symbol)
     sentiment = collect_sentiment_snapshot(symbol, news_api_key=settings.news_api_key)
 
+    relaxed_max_age = effective_max_age_minutes(settings)
+
     risk_snapshot = build_risk_snapshot(
         symbol,
         history,
@@ -370,7 +376,7 @@ def build_conversation_context(symbol: str, days: int, settings: Settings) -> Tu
         ),
         current_position_oz=settings.default_position_oz,
         pnl_today_millions=settings.pnl_today_millions,
-        max_data_age_minutes=settings.market_data_max_age_minutes,
+        max_data_age_minutes=relaxed_max_age,
         data_provider=settings.data_provider,
         data_mode=settings.data_mode,
     )

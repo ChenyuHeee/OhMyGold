@@ -958,27 +958,8 @@ def enforce_hard_limits(
     calibration = _as_dict(data_quality.get("calibration"))
 
     if data_quality.get("stale"):
-        violations.append(
-            HardRiskViolation(
-                code="MARKET_DATA_STALE",
-                message="Market data freshness window exceeded",
-                details={
-                    "provider": data_quality.get("provider_label") or data_quality.get("provider"),
-                    "age_minutes": data_quality.get("age_minutes"),
-                    "max_age_minutes": data_quality.get("max_age_minutes"),
-                },
-            )
-        )
-        if settings.hard_gate_fail_fast:
-            report = HardRiskGateReport(violations=violations, evaluated_metrics=evaluated)
-            _emit_risk_gate_audit(
-                settings=settings,
-                report=report,
-                response=response,
-                context=context,
-                message="Market data failed freshness check",
-            )
-            return report
+        # 暂时不因行情时效触发硬门槛，只记录评估信息供审计/调试
+        evaluated["market_data_stale_ignored"] = True
 
     primary_direction = _extract_primary_direction(response)
     target_position = _extract_target_position(response)

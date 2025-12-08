@@ -23,11 +23,12 @@ class YahooFinanceAdapter(DataSourceAdapter):
         end: datetime,
         session: Optional[Session] = None,
     ) -> pd.DataFrame:
+        # yfinance 与 requests-cache/curl_cffi 不兼容，显式禁用 session 以避免报错
         data = yf.download(
             symbol,
             start=start.strftime("%Y-%m-%d"),
             end=end.strftime("%Y-%m-%d"),
-            session=session,
+            session=None,
             auto_adjust=False,
             progress=False,
         )
