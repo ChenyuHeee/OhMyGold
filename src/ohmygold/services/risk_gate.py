@@ -836,15 +836,27 @@ def _evaluate_liquidity(
             )
         )
 
-    if spread_bps is not None and spread_bps > spread_limit_adjusted:
-        violations.append(
-            HardRiskViolation(
-                code="LIQUIDITY_SPREAD_EXCEEDED",
-                message="Bid-ask spread exceeds configured maximum",
-                metric=spread_bps,
-                limit=spread_limit_adjusted,
-            )
-        )
+    if spread_bps is not None:
+        if spread_bps > spread_limit_adjusted:
+            # When we have no volume context, treat the daily-bar-derived "spread" as informational.
+            no_volume_context = volume_ratio is None and latest_volume is None and avg_volume is None
+            if no_volume_context:
+                evaluated.setdefault("liquidity_warnings", []).append(
+                    {
+                        "code": "SPREAD_WITHOUT_LIQUIDITY_CONTEXT",
+                        "metric": spread_bps,
+                        "limit": spread_limit_adjusted,
+                    }
+                )
+            else:
+                violations.append(
+                    HardRiskViolation(
+                        code="LIQUIDITY_SPREAD_EXCEEDED",
+                        message="Bid-ask spread exceeds configured maximum",
+                        metric=spread_bps,
+                        limit=spread_limit_adjusted,
+                    )
+                )
 
     if (
         estimated_slippage_bps is not None

@@ -181,7 +181,17 @@ def _compute_cross_asset_correlations(
         if aligned.empty:
             continue
 
+        # Skip obviously degenerate cases: zero variance or identical series will produce spurious 1.0 corr.
+        if aligned.iloc[:, 0].std() == 0 or aligned.iloc[:, 1].std() == 0:
+            continue
+        if aligned.iloc[:, 0].equals(aligned.iloc[:, 1]):
+            continue
+
+        # Require enough overlapping observations to be meaningful.
         window = max(2, target.window)
+        if len(aligned) < window:
+            continue
+
         corr_series = rolling_correlation(aligned.iloc[:, 0], aligned.iloc[:, 1], window=window)
         latest = corr_series.dropna()
         value: Optional[float] = None
