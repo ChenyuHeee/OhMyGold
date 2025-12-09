@@ -716,27 +716,23 @@ class MainWindow(QMainWindow):
 
         lines: list[str] = []
         if phase or status:
-            lines.append(f"阶段 {phase or '-'} · 状态 {status or '-'}")
+            lines.append(f"阶段：{phase or '-'} · 状态：{status or '-'}")
         if summary:
-            lines.append(summary)
+            lines.append(f"摘要：{summary}")
 
         if base_plan:
             position = base_plan.get("position_oz")
             entry = base_plan.get("entry")
             stop = base_plan.get("stop") or base_plan.get("stop_loss")
             targets = base_plan.get("targets") if isinstance(base_plan.get("targets"), list) else []
-            target_str = ", ".join(self._format_number(t) for t in targets) if targets else "-"
+            target_str = "，".join(self._format_number(t) for t in targets) if targets else "-"
+            direction = "做多" if (isinstance(position, (int, float)) and position >= 0) else "做空"
             lines.append(
-                "交易方案：在 XAUUSD 上以限价 {entry} 建立 {size} 盎司头寸，止损 {stop}，目标 {target}.".format(
-                    entry=self._format_number(entry),
-                    size=self._format_number(position),
-                    stop=self._format_number(stop),
-                    target=target_str,
-                )
+                f"基准方案：{direction} XAUUSD {self._format_number(position)} 盎司，入场 {self._format_number(entry)}，止损 {self._format_number(stop)}，目标 {target_str}。"
             )
             rationale = base_plan.get("rationale")
             if isinstance(rationale, str) and rationale.strip():
-                lines.append(f"方案依据：{rationale.strip()}")
+                lines.append(f"策略理由：{rationale.strip()}")
 
         if alternate_plan:
             hedges = alternate_plan.get("hedges") if isinstance(alternate_plan.get("hedges"), list) else []
@@ -748,17 +744,23 @@ class MainWindow(QMainWindow):
 
         orders = execution_checklist.get("orders") if isinstance(execution_checklist.get("orders"), list) else []
         if orders:
-            lines.append(f"执行指令：共 {len(orders)} 条，首单 {orders[0].get('type', 'LIMIT')} {self._format_number(orders[0].get('size_oz'))} 盎司 @ {self._format_number(orders[0].get('entry'))}。")
+            first = orders[0]
+            lines.append(
+                f"执行指令：共 {len(orders)} 条；首单 {first.get('type', 'LIMIT')} {self._format_number(first.get('size_oz'))} 盎司 @ {self._format_number(first.get('entry'))}，止损 {self._format_number(first.get('stop'))}。"
+            )
 
         risk_review = risk_compliance.get("risk_review") if isinstance(risk_compliance.get("risk_review"), dict) else {}
         compliance_review = risk_compliance.get("compliance_review") if isinstance(risk_compliance.get("compliance_review"), dict) else {}
         if risk_review:
             breaches = risk_review.get("breaches")
-            lines.append("风控核查：{}；VaR={}; 利用率={}.".format(
-                "无硬性违规" if not breaches else "存在待处理项",
-                self._format_number((risk_review.get("risk_metrics") or {}).get("var99")),
-                self._format_number((risk_review.get("risk_metrics") or {}).get("position_utilization")),
-            ))
+            metrics = risk_review.get("risk_metrics") if isinstance(risk_review.get("risk_metrics"), dict) else {}
+            lines.append(
+                "风控核查：{}；VaR99={}; 头寸利用率={}.".format(
+                    "无硬性违规" if not breaches else "存在待处理项",
+                    self._format_number(metrics.get("var99")),
+                    self._format_number(metrics.get("position_utilization")),
+                )
+            )
         if compliance_review:
             approvals = compliance_review.get("approvals") if isinstance(compliance_review.get("approvals"), list) else []
             if approvals:
@@ -766,12 +768,12 @@ class MainWindow(QMainWindow):
 
         monitoring = payload.get("monitoring_triggers") if isinstance(payload.get("monitoring_triggers"), list) else []
         if monitoring:
-            lines.append("监控触发条件：" + "；".join(str(item) for item in monitoring))
+            lines.append("监控条件：" + "；".join(str(item) for item in monitoring))
 
         task_checklist = operations.get("task_checklist") if isinstance(operations.get("task_checklist"), list) else []
         if task_checklist:
             pending = sum(1 for task in task_checklist if isinstance(task, dict) and task.get("status") != "complete")
-            lines.append(f"后续操作：共 {len(task_checklist)} 项任务，其中 {pending} 项未完成。")
+            lines.append(f"后续操作：共 {len(task_checklist)} 项任务，{pending} 项待完成。")
 
         return "\n".join(lines).strip()
 
