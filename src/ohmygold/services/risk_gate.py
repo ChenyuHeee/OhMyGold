@@ -1046,13 +1046,14 @@ def enforce_hard_limits(
             )
         )
 
-    evaluated["has_stop_protection"] = _has_stop_protection(orders)
-    if settings.hard_gate_require_stop_loss and not evaluated["has_stop_protection"]:
+    nonzero_orders = [order for order in orders if (_extract_order_size(order) or 0) > 0]
+    evaluated["has_stop_protection"] = _has_stop_protection(nonzero_orders)
+    if settings.hard_gate_require_stop_loss and nonzero_orders and not evaluated["has_stop_protection"]:
         violations.append(
             HardRiskViolation(
                 code="STOP_LOSS_MISSING",
                 message="No stop-loss protection detected for execution orders",
-                details={"orders_checked": len(orders)},
+                details={"orders_checked": len(nonzero_orders)},
             )
         )
 
