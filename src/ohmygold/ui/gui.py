@@ -691,6 +691,8 @@ class MainWindow(QMainWindow):
         self._populate_plan_table(result)
 
     def _render_final_summary(self, result: Dict[str, Any]) -> str:
+        """生成中文纪要风格的概要，覆盖交易方案、执行、风控、监控与行动项。"""
+
         if not isinstance(result, dict):
             return ""
 
@@ -714,12 +716,21 @@ class MainWindow(QMainWindow):
         operations_raw = payload.get("operations_handoff") if isinstance(payload.get("operations_handoff"), dict) else None
         operations = operations_raw if isinstance(operations_raw, dict) else {}
 
-        lines: list[str] = []
-        if phase or status:
-            lines.append(f"阶段：{phase or '-'} · 状态：{status or '-'}")
-        if summary:
-            lines.append(f"摘要：{summary}")
+        sections: list[str] = []
 
+        # 会议信息
+        header_parts = []
+        if phase:
+            header_parts.append(f"阶段：{phase}")
+        if status:
+            header_parts.append(f"状态：{status}")
+        if header_parts:
+            sections.append("；".join(header_parts))
+        if summary:
+            sections.append(f"摘要：{summary}")
+
+        # 交易方案
+        plan_lines: list[str] = []
         if base_plan:
             position = base_plan.get("position_oz")
             entry = base_plan.get("entry")
@@ -727,34 +738,44 @@ class MainWindow(QMainWindow):
             targets = base_plan.get("targets") if isinstance(base_plan.get("targets"), list) else []
             target_str = "，".join(self._format_number(t) for t in targets) if targets else "-"
             direction = "做多" if (isinstance(position, (int, float)) and position >= 0) else "做空"
-            lines.append(
+            rationale = base_plan.get("rationale")
+            plan_lines.append(
                 f"基准方案：{direction} XAUUSD {self._format_number(position)} 盎司，入场 {self._format_number(entry)}，止损 {self._format_number(stop)}，目标 {target_str}。"
             )
-            rationale = base_plan.get("rationale")
             if isinstance(rationale, str) and rationale.strip():
-                lines.append(f"策略理由：{rationale.strip()}")
+                plan_lines.append(f"策略理由：{rationale.strip()}")
 
         if alternate_plan:
             hedges = alternate_plan.get("hedges") if isinstance(alternate_plan.get("hedges"), list) else []
             contingencies = alternate_plan.get("contingencies") if isinstance(alternate_plan.get("contingencies"), list) else []
             if hedges:
-                lines.append("对冲策略：" + "；".join(str(item) for item in hedges))
+                plan_lines.append("对冲策略：" + "；".join(str(item) for item in hedges))
             if contingencies:
-                lines.append("应急预案：" + "；".join(str(item) for item in contingencies))
+                plan_lines.append("应急预案：" + "；".join(str(item) for item in contingencies))
+        if plan_lines:
+            sections.append("交易方案：\n" + "\n".join(f"- {line}" for line in plan_lines))
 
+        # 执行要点
+        exec_lines: list[str] = []
         orders = execution_checklist.get("orders") if isinstance(execution_checklist.get("orders"), list) else []
         if orders:
             first = orders[0]
-            lines.append(
-                f"执行指令：共 {len(orders)} 条；首单 {first.get('type', 'LIMIT')} {self._format_number(first.get('size_oz'))} 盎司 @ {self._format_number(first.get('entry'))}，止损 {self._format_number(first.get('stop'))}。"
+            exec_lines.append(
+                f"首单：{first.get('type', 'LIMIT')} {self._format_number(first.get('size_oz'))} 盎司 @ {self._format_number(first.get('entry'))}，止损 {self._format_number(first.get('stop'))}"
             )
+            if len(orders) > 1:
+                exec_lines.append(f"其余指令：共 {len(orders) - 1} 条，详见结构化明细")
+        if exec_lines:
+            sections.append("执行要点：\n" + "\n".join(f"- {line}" for line in exec_lines))
 
+        # 风控与合规
+        rc_lines: list[str] = []
         risk_review = risk_compliance.get("risk_review") if isinstance(risk_compliance.get("risk_review"), dict) else {}
         compliance_review = risk_compliance.get("compliance_review") if isinstance(risk_compliance.get("compliance_review"), dict) else {}
         if risk_review:
             breaches = risk_review.get("breaches")
             metrics = risk_review.get("risk_metrics") if isinstance(risk_review.get("risk_metrics"), dict) else {}
-            lines.append(
+            rc_lines.append(
                 "风控核查：{}；VaR99={}; 头寸利用率={}.".format(
                     "无硬性违规" if not breaches else "存在待处理项",
                     self._format_number(metrics.get("var99")),
@@ -764,18 +785,27 @@ class MainWindow(QMainWindow):
         if compliance_review:
             approvals = compliance_review.get("approvals") if isinstance(compliance_review.get("approvals"), list) else []
             if approvals:
-                lines.append("合规意见：" + "；".join(str(item) for item in approvals))
+                rc_lines.append("合规意见：" + "；".join(str(item) for item in approvals))
+        if rc_lines:
+            sections.append("风控与合规：\n" + "\n".join(f"- {line}" for line in rc_lines))
 
+        # 监控与行动项
         monitoring = payload.get("monitoring_triggers") if isinstance(payload.get("monitoring_triggers"), list) else []
-        if monitoring:
-            lines.append("监控条件：" + "；".join(str(item) for item in monitoring))
-
         task_checklist = operations.get("task_checklist") if isinstance(operations.get("task_checklist"), list) else []
+        if monitoring:
+            sections.append("监控条件：\n" + "\n".join(f"- {item}" for item in monitoring))
         if task_checklist:
             pending = sum(1 for task in task_checklist if isinstance(task, dict) and task.get("status") != "complete")
-            lines.append(f"后续操作：共 {len(task_checklist)} 项任务，{pending} 项待完成。")
+            actions = [
+                f"{(task.get('category') or '任务')}：{task.get('task') or task.get('description') or ''}"
+                for task in task_checklist
+                if isinstance(task, dict)
+            ]
+            actions_text = "\n".join(f"- {item}" for item in actions if item.strip())
+            sections.append(f"后续操作：共 {len(task_checklist)} 项，待完成 {pending} 项。\n{actions_text}")
 
-        return "\n".join(lines).strip()
+        # 汇总输出
+        return "\n\n".join(sections).strip()
 
     def _populate_plan_table(self, result: Dict[str, Any]) -> None:
         self.plan_table.setRowCount(0)
