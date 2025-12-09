@@ -415,7 +415,21 @@ class MainWindow(QMainWindow):
         if self._active_worker is not worker or worker.is_cancelled:
             return
         self._populate_news(context)
+        self._show_intermediate_payload(context, "实时上下文（运行中）")
         self.statusBar().showMessage("新闻资讯已更新（实时刷新）", 3000)
+
+    def _show_intermediate_payload(self, payload: Dict[str, Any], label: str) -> None:
+        """Render live data into summary/detail/json tabs while workflow is running."""
+
+        if not isinstance(payload, dict):
+            return
+
+        self.summary_text.setPlainText(label)
+        try:
+            self.json_text.setPlainText(json.dumps(payload, indent=2, ensure_ascii=False))
+        except Exception:
+            self.json_text.setPlainText(label + "（序列化失败）")
+        self._populate_tree(payload)
 
     def _update_chart_from_path(self, chart_path: str) -> None:
         pixmap = QPixmap(chart_path)
