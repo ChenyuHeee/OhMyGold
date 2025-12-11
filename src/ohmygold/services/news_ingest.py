@@ -78,6 +78,18 @@ _RSS_SOURCES: Sequence[Dict[str, Any]] = (
 def _ensure_output_dir() -> None:
     _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+
+def _parse_ts(value: str) -> datetime:
+    """Best-effort ISO parsing to UTC; fallback to now."""
+
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except Exception:
+        try:
+            return datetime.strptime(value, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=timezone.utc)
+        except Exception:
+            return datetime.now(timezone.utc)
+
 def _parse_alpha_timestamp(value: Optional[str]) -> str:
     if not value:
         return datetime.now(timezone.utc).isoformat()
@@ -298,7 +310,8 @@ def _fetch_rss_articles() -> List[NewsArticle]:
                 continue
             summary = (getattr(entry, "summary", "") or getattr(entry, "description", "") or "").strip()
             link = getattr(entry, "link", "")
-            published = getattr(entry, "published", None) or datetime.now(timezone.utc).isoformat()
+            published_raw = getattr(entry, "published", None) or datetime.now(timezone.utc).isoformat()
+            published = _parse_ts(str(published_raw)).isoformat()
             items.append(
                 NewsArticle(
                     source=str(config["id"]),
@@ -407,7 +420,25 @@ def collect_news_articles(
         if key not in deduped:
             deduped[key] = article
 
-    ordered_articles = sorted(deduped.values(), key=lambda item: item.published, reverse=True)[:limit]
+    now = datetime.now(timezone.utc)
+    recency_cutoff = now - timedelta(days=3)
+
+    filtered = []
+    stale = []
+    for item in deduped.values():
+        try:
+            published_dt = _parse_ts(str(item.published))
+        except Exception:
+            published_dt = now
+        if published_dt >= recency_cutoff:
+            filtered.append((published_dt, item))
+        else:
+            stale.append((published_dt, item))
+
+    # If filtering drops everything, fall back to the freshest available items to avoid empty feed.
+    pool = filtered if filtered else stale
+    ordered_articles = [article for _, article in sorted(pool, key=lambda pair: pair[0], reverse=True)][:limit]
+
     _save_cache(ordered_articles)
     return ordered_articles
 
