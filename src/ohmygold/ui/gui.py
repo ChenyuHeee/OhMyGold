@@ -759,12 +759,19 @@ class MainWindow(QMainWindow):
         exec_lines: list[str] = []
         orders = execution_checklist.get("orders") if isinstance(execution_checklist.get("orders"), list) else []
         if orders:
-            first = orders[0]
-            exec_lines.append(
-                f"首单：{first.get('type', 'LIMIT')} {self._format_number(first.get('size_oz'))} 盎司 @ {self._format_number(first.get('entry'))}，止损 {self._format_number(first.get('stop'))}"
-            )
-            if len(orders) > 1:
-                exec_lines.append(f"其余指令：共 {len(orders) - 1} 条，详见结构化明细")
+            for idx, order in enumerate(orders, start=1):
+                entry_price = order.get("entry") or order.get("entry_price")
+                stop_price = order.get("stop") or order.get("stop_loss")
+                target_price = order.get("target") or order.get("take_profit")
+                targets = order.get("targets") if isinstance(order.get("targets"), list) else []
+                target_str = (
+                    "，".join(self._format_number(t) for t in targets)
+                    if targets else self._format_number(target_price)
+                )
+                exec_lines.append(
+                    f"指令{idx}：{order.get('type', 'LIMIT')} {self._format_number(order.get('size_oz') or order.get('size'))} 盎司 @ {self._format_number(entry_price)}"
+                    f"，止损 {self._format_number(stop_price)}，目标 {target_str}"
+                )
         if exec_lines:
             sections.append("执行要点：\n" + "\n".join(f"- {line}" for line in exec_lines))
 
