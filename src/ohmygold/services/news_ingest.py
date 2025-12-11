@@ -241,12 +241,16 @@ def _fetch_newsapi_articles(news_api_key: Optional[str], query: str, page_size: 
     if not news_api_key or requests is None:
         return []
     try:  # pragma: no cover - network path
+        now = datetime.now(timezone.utc)
+        from_dt = now - timedelta(days=1)
         params = {
             "apiKey": news_api_key,
             "q": query,
             "language": "en",
             "pageSize": page_size,
             "sortBy": "publishedAt",
+            "from": from_dt.isoformat(),
+            "to": now.isoformat(),
         }
         response = requests.get("https://newsapi.org/v2/everything", params=params, timeout=6)
         response.raise_for_status()
